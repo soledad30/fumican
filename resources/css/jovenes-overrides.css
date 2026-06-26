@@ -1,0 +1,10 @@
+/* Overrides para tema Jóvenes */
+.theme-jovenes-day a:hover,
+.theme-jovenes-night a:hover {
+  transition: color 0.2s ease;
+}
+
+.theme-jovenes-day a,
+.theme-jovenes-night a {
+  transition: color 0.2s ease;
+}

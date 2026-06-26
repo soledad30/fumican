@@ -1,0 +1,157 @@
+/*
+ * theme-bridge.css — Remapea clases Tailwind emerald/green existentes a var(--color-*)
+ * sin editar cada .vue. Cambia colores solo en theme.css.
+ */
+
+/* ─── Fondos emerald / green → tokens ─── */
+[class*="theme-"] .bg-emerald-50,
+[class*="theme-"] .bg-green-50,
+html.alto-contraste .bg-emerald-50,
+html.alto-contraste .bg-green-50 {
+  background-color: var(--color-primary-light) !important;
+}
+
+[class*="theme-"] .bg-emerald-100,
+[class*="theme-"] .bg-green-100,
+html.alto-contraste .bg-emerald-100 {
+  background-color: var(--color-primary-soft) !important;
+}
+
+[class*="theme-"] .bg-emerald-500,
+html.alto-contraste .bg-emerald-500 {
+  background-color: var(--color-primary) !important;
+}
+
+[class*="theme-"] .bg-emerald-600,
+[class*="theme-"] .bg-emerald-700,
+[class*="theme-"] .bg-emerald-800,
+[class*="theme-"] .bg-green-600,
+[class*="theme-"] .bg-green-700,
+html.alto-contraste .bg-emerald-600,
+html.alto-contraste .bg-emerald-700 {
+  background-color: var(--color-primary) !important;
+}
+
+[class*="theme-"] .bg-emerald-900,
+html.alto-contraste .bg-emerald-900 {
+  background-color: var(--color-sidebar-from) !important;
+}
+
+[class*="theme-"] .hover\:bg-emerald-50:hover,
+[class*="theme-"] .hover\:bg-emerald-100:hover,
+html.alto-contraste .hover\:bg-emerald-50:hover {
+  background-color: var(--color-surface-hover) !important;
+}
+
+[class*="theme-"] .hover\:bg-emerald-600:hover,
+[class*="theme-"] .hover\:bg-emerald-700:hover,
+[class*="theme-"] .hover\:bg-emerald-800:hover,
+html.alto-contraste .hover\:bg-emerald-700:hover {
+  background-color: var(--color-primary-hover) !important;
+}
+
+/* Opacidad sidebar / header */
+[class*="theme-"] .bg-emerald-500\/20 {
+  background-color: color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
+}
+[class*="theme-"] .bg-emerald-700\/35,
+[class*="theme-"] .bg-emerald-700\/40,
+[class*="theme-"] .bg-emerald-700\/45,
+[class*="theme-"] .bg-emerald-700\/50,
+[class*="theme-"] .bg-emerald-700\/55 {
+  background-color: color-mix(in srgb, var(--color-primary-hover) 45%, transparent) !important;
+}
+[class*="theme-"] .bg-emerald-900\/30,
+[class*="theme-"] .bg-emerald-900\/50 {
+  background-color: color-mix(in srgb, var(--color-sidebar-from) 50%, transparent) !important;
+}
+[class*="theme-"] .hover\:bg-emerald-700\/50:hover {
+  background-color: color-mix(in srgb, var(--color-primary-hover) 50%, transparent) !important;
+}
+
+/* ─── Texto emerald / green → tokens ─── */
+[class*="theme-"] .text-emerald-50,
+[class*="theme-"] .text-emerald-100,
+[class*="theme-"] .text-emerald-200,
+html.alto-contraste .text-emerald-50,
+html.alto-contraste .text-emerald-100 {
+  color: var(--color-header-text) !important;
+}
+
+[class*="theme-"] .text-emerald-300,
+[class*="theme-"] .text-emerald-400,
+[class*="theme-"] .text-emerald-500 {
+  color: var(--color-primary-muted) !important;
+}
+
+[class*="theme-"] .text-emerald-600,
+[class*="theme-"] .text-emerald-700,
+[class*="theme-"] .text-emerald-800,
+[class*="theme-"] .text-emerald-900,
+[class*="theme-"] .text-green-600,
+[class*="theme-"] .text-green-700,
+[class*="theme-"] .text-green-800,
+html.alto-contraste .text-emerald-600,
+html.alto-contraste .text-emerald-700 {
+  color: var(--color-primary) !important;
+}
+
+[class*="theme-"] .hover\:text-emerald-800:hover,
+[class*="theme-"] .hover\:text-green-800:hover {
+  color: var(--color-primary-hover) !important;
+}
+
+[class*="theme-"] .text-emerald-300\/70,
+[class*="theme-"] .text-emerald-300\/80,
+[class*="theme-"] .text-emerald-400\/70,
+[class*="theme-"] .text-emerald-700\/70,
+[class*="theme-"] .text-emerald-700\/80,
+[class*="theme-"] .text-emerald-100\/90,
+[class*="theme-"] .text-emerald-200\/85 {
+  color: var(--color-sidebar-text-muted) !important;
+}
+
+/* ─── Bordes ─── */
+[class*="theme-"] .border-emerald-100,
+[class*="theme-"] .border-emerald-600\/40,
+[class*="theme-"] .border-emerald-600\/70,
+[class*="theme-"] .border-emerald-700\/60,
+html.alto-contraste .border-emerald-100 {
+  border-color: var(--color-border) !important;
+}
+
+[class*="theme-"] .border-emerald-400,
+[class*="theme-"] .border-emerald-700,
+html.alto-contraste .border-emerald-400 {
+  border-color: var(--color-primary) !important;
+}
+
+[class*="theme-"] .focus\:border-emerald-500:focus,
+[class*="theme-"] .focus\:border-emerald-700:focus,
+[class*="theme-"] .focus\:ring-emerald-500:focus {
+  --tw-ring-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+/* ─── Botones Flowbite / purple legacy ─── */
+[class*="theme-"] .bg-purple-100,
+html.alto-contraste .bg-purple-100 {
+  background-color: var(--color-primary-soft) !important;
+  color: var(--color-primary-hover) !important;
+}
+
+[class*="theme-"] .text-purple-600,
+html.alto-contraste .text-purple-600 {
+  color: var(--color-primary) !important;
+}
+
+/* ─── Superficies en modo noche (heredado — theme-contrast.css cubre el resto) ─── */
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}

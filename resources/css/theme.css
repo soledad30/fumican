@@ -1,0 +1,301 @@
+/*
+ * tokens.css — ÚNICO lugar para definir colores por tema.
+ * Las plantillas usan var(--color-*) o clases vet-* / Tailwind emerald (remapeadas en theme-bridge.css).
+ */
+
+:root {
+  --font-scale: 1;
+  --font-size-base: 16px;
+
+  --color-background: #ecfdf5;
+  --color-background-secondary: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f0fdf9;
+  --color-text-base: #134e4a;
+  --color-text-muted: #5f7a76;
+  --color-primary: #059669;
+  --color-primary-hover: #047857;
+  --color-primary-light: #ecfdf5;
+  --color-primary-soft: #d1fae5;
+  --color-primary-muted: #6ee7b7;
+  --color-accent: #0d9488;
+  --color-border: #a7f3d0;
+  --color-on-primary: #ffffff;
+
+  --color-sidebar-from: #064e3b;
+  --color-sidebar-mid: #065f46;
+  --color-sidebar-to: #047857;
+  --color-sidebar-text: #ecfdf5;
+  --color-sidebar-text-muted: rgba(167, 243, 208, 0.85);
+
+  --color-header-from: #065f46;
+  --color-header-mid: #047857;
+  --color-header-to: #059669;
+  --color-header-text: #ecfdf5;
+
+  --vet-table-head: #d1fae5;
+  --vet-matrix-head: #064e3b;
+  --vet-stat-accent: #059669;
+  --color-on-matrix-head: #ffffff;
+  --color-on-table-head: #134e4a;
+
+  --scrollbar-track: #d1fae5;
+  --scrollbar-thumb: #6ee7b7;
+  --scrollbar-thumb-hover: #34d399;
+}
+
+/* ─── Alto contraste (independiente del tema de edad) ─── */
+html.alto-contraste {
+  --color-background: #000000 !important;
+  --color-background-secondary: #111111 !important;
+  --color-surface: #111111 !important;
+  --color-surface-hover: #1a1a1a !important;
+  --color-text-base: #ffff00 !important;
+  --color-text-muted: #ffffff !important;
+  --color-primary: #00ff00 !important;
+  --color-primary-hover: #66ff66 !important;
+  --color-primary-light: #1a1a1a !important;
+  --color-primary-soft: #222222 !important;
+  --color-border: #ffffff !important;
+  --color-on-primary: #000000 !important;
+  --color-sidebar-from: #000000 !important;
+  --color-sidebar-mid: #111111 !important;
+  --color-sidebar-to: #000000 !important;
+  --color-sidebar-text: #ffff00 !important;
+  --color-header-from: #000000 !important;
+  --color-header-mid: #111111 !important;
+  --color-header-to: #000000 !important;
+  --color-header-text: #ffff00 !important;
+  --vet-table-head: #222222 !important;
+  --vet-matrix-head: #000000 !important;
+}
+
+/* ─── Niños — pasteles ─── */
+.theme-ninos-day {
+  --color-background: #fff5f7;
+  --color-background-secondary: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #fff0f3;
+  --color-text-base: #5c4d6a;
+  --color-text-muted: #8b7fa8;
+  --color-primary: #ff9a8b;
+  --color-primary-hover: #ff7b6b;
+  --color-primary-light: #fff0f3;
+  --color-primary-soft: #ffd4d4;
+  --color-primary-muted: #ffb5b5;
+  --color-accent: #b5ead7;
+  --color-border: #ffd4e5;
+  --color-sidebar-from: #c7ceea;
+  --color-sidebar-mid: #b5ead7;
+  --color-sidebar-to: #ffcad4;
+  --color-sidebar-text: #4a4063;
+  --color-header-from: #ffb5c5;
+  --color-header-mid: #ff9a8b;
+  --color-header-to: #ffc8a2;
+  --color-header-text: #4a4063;
+  --vet-table-head: #ffe8ee;
+  --vet-matrix-head: #c7ceea;
+  --vet-stat-accent: #ff9a8b;
+  --color-on-matrix-head: #4a4063;
+  --color-on-table-head: #5c4d6a;
+  --color-sidebar-text-muted: rgba(74, 64, 99, 0.75);
+  --color-on-primary: #ffffff;
+  --font-size-base: 17px;
+  --scrollbar-track: #ffe8ee;
+  --scrollbar-thumb: #ffb5c5;
+  --scrollbar-thumb-hover: #ff9a8b;
+}
+
+.theme-ninos-night {
+  --color-background: #fff5f7;
+  --color-background-secondary: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #fff0f3;
+  --color-text-base: #4a4063;
+  --color-text-muted: #7c6f94;
+  --color-primary: #ff9a8b;
+  --color-primary-hover: #ff7b6b;
+  --color-primary-light: #fff0f3;
+  --color-primary-soft: #ffd4d4;
+  --color-primary-muted: #ffb5b5;
+  --color-accent: #b5ead7;
+  --color-border: #ffd4e5;
+  --color-sidebar-from: #2d2a4a;
+  --color-sidebar-mid: #3d3858;
+  --color-sidebar-to: #4a4063;
+  --color-sidebar-text: #ffd4e5;
+  --color-header-from: #3d3858;
+  --color-header-mid: #4a4063;
+  --color-header-to: #5c4d6a;
+  --color-header-text: #ffd4e5;
+  --vet-table-head: #ffe8ee;
+  --vet-matrix-head: #4a4063;
+  --vet-stat-accent: #ff9a8b;
+  --color-on-matrix-head: #ffd4e5;
+  --color-on-table-head: #4a4063;
+  --color-sidebar-text-muted: rgba(255, 212, 229, 0.8);
+  --color-on-primary: #ffffff;
+  --font-size-base: 17px;
+  --scrollbar-track: #ffe8ee;
+  --scrollbar-thumb: #ffb5c5;
+  --scrollbar-thumb-hover: #ff9a8b;
+}
+
+/* ─── Jóvenes — naranja ─── */
+.theme-jovenes-day {
+  --color-background: #fff8f0;
+  --color-background-secondary: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #fff3e6;
+  --color-text-base: #1e293b;
+  --color-text-muted: #64748b;
+  --color-primary: #f97316;
+  --color-primary-hover: #ea580c;
+  --color-primary-light: #fff7ed;
+  --color-primary-soft: #ffedd5;
+  --color-primary-muted: #fdba74;
+  --color-accent: #fb923c;
+  --color-border: #fed7aa;
+  --color-sidebar-from: #9a3412;
+  --color-sidebar-mid: #c2410c;
+  --color-sidebar-to: #ea580c;
+  --color-sidebar-text: #fff7ed;
+  --color-header-from: #c2410c;
+  --color-header-mid: #ea580c;
+  --color-header-to: #f97316;
+  --color-header-text: #fff7ed;
+  --vet-table-head: #ffedd5;
+  --vet-matrix-head: #9a3412;
+  --vet-stat-accent: #f97316;
+  --color-on-matrix-head: #fff7ed;
+  --color-on-table-head: #1e293b;
+  --color-sidebar-text-muted: rgba(255, 247, 237, 0.85);
+  --color-on-primary: #ffffff;
+  --scrollbar-track: #ffedd5;
+  --scrollbar-thumb: #fdba74;
+  --scrollbar-thumb-hover: #f97316;
+}
+
+.theme-jovenes-night {
+  --color-background: #fff8f0;
+  --color-background-secondary: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #fff3e6;
+  --color-text-base: #1e293b;
+  --color-text-muted: #64748b;
+  --color-primary: #f97316;
+  --color-primary-hover: #ea580c;
+  --color-primary-light: #fff7ed;
+  --color-primary-soft: #ffedd5;
+  --color-primary-muted: #fdba74;
+  --color-accent: #fb923c;
+  --color-border: #fed7aa;
+  --color-sidebar-from: #1c1917;
+  --color-sidebar-mid: #292524;
+  --color-sidebar-to: #44403c;
+  --color-sidebar-text: #ffedd5;
+  --color-header-from: #292524;
+  --color-header-mid: #44403c;
+  --color-header-to: #57534e;
+  --color-header-text: #ffedd5;
+  --vet-table-head: #ffedd5;
+  --vet-matrix-head: #9a3412;
+  --vet-stat-accent: #f97316;
+  --color-on-matrix-head: #fff7ed;
+  --color-on-table-head: #1e293b;
+  --color-sidebar-text-muted: rgba(255, 237, 213, 0.8);
+  --color-on-primary: #ffffff;
+  --scrollbar-track: #ffedd5;
+  --scrollbar-thumb: #fdba74;
+  --scrollbar-thumb-hover: #f97316;
+}
+
+/* ─── Adultos — verde veterinario Fumican (tema principal) ─── */
+.theme-adultos-day {
+  --color-background: #ecfdf5;
+  --color-background-secondary: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f0fdf9;
+  --color-text-base: #134e4a;
+  --color-text-muted: #5f7a76;
+  --color-primary: #059669;
+  --color-primary-hover: #047857;
+  --color-primary-light: #ecfdf5;
+  --color-primary-soft: #d1fae5;
+  --color-primary-muted: #6ee7b7;
+  --color-accent: #0d9488;
+  --color-border: #99f6e4;
+  --color-sidebar-from: #064e3b;
+  --color-sidebar-mid: #065f46;
+  --color-sidebar-to: #047857;
+  --color-sidebar-text: #ecfdf5;
+  --color-sidebar-text-muted: rgba(167, 243, 208, 0.85);
+  --color-header-from: #065f46;
+  --color-header-mid: #047857;
+  --color-header-to: #059669;
+  --color-header-text: #ecfdf5;
+  --vet-table-head: #d1fae5;
+  --vet-matrix-head: #064e3b;
+  --vet-stat-accent: #059669;
+  --color-on-matrix-head: #ffffff;
+  --color-on-table-head: #134e4a;
+  --font-size-base: 16px;
+  --scrollbar-track: #d1fae5;
+  --scrollbar-thumb: #6ee7b7;
+  --scrollbar-thumb-hover: #34d399;
+}
+
+.theme-adultos-night {
+  /* Chrome oscuro (sidebar/header) pero contenido claro y legible */
+  --color-background: #ecfdf5;
+  --color-background-secondary: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f0fdf9;
+  --color-text-base: #134e4a;
+  --color-text-muted: #5f7a76;
+  --color-primary: #059669;
+  --color-primary-hover: #047857;
+  --color-primary-light: #ecfdf5;
+  --color-primary-soft: #d1fae5;
+  --color-primary-muted: #6ee7b7;
+  --color-accent: #0d9488;
+  --color-border: #99f6e4;
+  --color-sidebar-from: #064e3b;
+  --color-sidebar-mid: #0f1f1c;
+  --color-sidebar-to: #1a2e2a;
+  --color-sidebar-text: #ecfdf5;
+  --color-sidebar-text-muted: rgba(167, 243, 208, 0.75);
+  --color-header-from: #064e3b;
+  --color-header-mid: #065f46;
+  --color-header-to: #047857;
+  --color-header-text: #ecfdf5;
+  --vet-table-head: #d1fae5;
+  --vet-matrix-head: #064e3b;
+  --vet-stat-accent: #059669;
+  --color-on-matrix-head: #ffffff;
+  --color-on-table-head: #134e4a;
+  --color-on-primary: #ffffff;
+  --font-size-base: 16px;
+  --scrollbar-track: #d1fae5;
+  --scrollbar-thumb: #6ee7b7;
+  --scrollbar-thumb-hover: #34d399;
+}
+
+/* Escala de letra global (afecta todo lo que usa rem, incl. Tailwind) */
+html {
+  font-size: calc(var(--font-size-base) * var(--font-scale, 1));
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-base);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  border-radius: 5px;
+}

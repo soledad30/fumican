@@ -1,0 +1,105 @@
+/* dark-overrides.css: Fuerza modo oscuro global para fondo y texto en todos los elementos principales */
+
+.theme-dark .fa-palette,
+.theme-dark .fa-sun,
+.theme-dark .fa-moon,
+.theme-dark .fa-venus,
+.theme-dark .fa-low-vision {
+  color: #FADADD !important; /* Rosa pastel claro para íconos en fondo oscuro */
+}
+
+.theme-dark ul li a i.fa-solid {
+  color: #FADADD !important;
+}
+
+.theme-dark ul li a.selected i.fa-solid {
+  color: #8B5CF6 !important;
+}
+
+
+html.theme-dark, body.theme-dark, .theme-dark {
+  background-color: var(--color-background) !important;
+  color: var(--color-text-base) !important;
+}
+
+.theme-dark, .theme-dark * {
+  color: var(--color-text-base) !important;
+  border-color: var(--color-border) !important;
+}
+
+.theme-dark h1,
+.theme-dark h2,
+.theme-dark h3,
+.theme-dark h4,
+.theme-dark h5,
+.theme-dark h6,
+.theme-dark .apexcharts-title,
+.theme-dark .apexcharts-legend-text,
+.theme-dark .apexcharts-text,
+.theme-dark .apexcharts-yaxis-label,
+.theme-dark .apexcharts-xaxis-label {
+  color: var(--color-text-base) !important;
+}
+
+.theme-dark .apexcharts-title-text,
+.theme-dark .apexcharts-legend-text,
+.theme-dark .apexcharts-text tspan {
+  fill: var(--color-text-base) !important;
+  color: var(--color-text-base) !important;
+}
+
+
+
+.theme-dark .bg-white,
+.theme-dark .bg-gray-50,
+.theme-dark .bg-gray-100,
+.theme-dark .bg-gray-200,
+.theme-dark .bg-background,
+.theme-dark .container,
+.theme-dark .border-t,
+.theme-dark .shadow,
+.theme-dark .card,
+.theme-dark .rounded-lg,
+.theme-dark .navbar,
+.theme-dark .sidebar,
+.theme-dark .footer {
+  background-color: var(--color-background-secondary) !important;
+  color: var(--color-text-base) !important;
+  border-color: var(--color-border) !important;
+}
+
+.theme-dark .text-gray-500,
+.theme-dark .text-gray-700,
+.theme-dark .text-gray-900,
+.theme-dark .text-black {
+  color: var(--color-text-base) !important;
+}
+
+.theme-dark .text-gray-400 {
+  color: var(--color-text-muted) !important;
+}
+
+.theme-dark a {
+  color: var(--color-primary) !important;
+}
+
+.theme-dark .btn,
+.theme-dark button {
+  background-color: var(--color-primary) !important;
+  color: var(--color-background-secondary) !important;
+}
+
+.theme-dark input,
+.theme-dark select,
+.theme-dark textarea {
+  background-color: var(--color-background-secondary) !important;
+  color: var(--color-text-base) !important;
+  border-color: var(--color-border) !important;
+}
+
+.theme-dark input::placeholder,
+.theme-dark textarea::placeholder {
+  color: var(--color-text-muted) !important;
+  opacity: 1;
+}
+

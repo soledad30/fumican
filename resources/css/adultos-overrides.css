@@ -1,0 +1,11 @@
+/* Overrides para tema Adultos — accesibilidad */
+.theme-adultos-day,
+.theme-adultos-night {
+  letter-spacing: 0.01em;
+}
+
+.theme-adultos-day button:focus,
+.theme-adultos-night button:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

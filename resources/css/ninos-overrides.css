@@ -1,0 +1,19 @@
+/* Overrides para tema Niños */
+.theme-ninos-day .sidebar,
+.theme-ninos-night .sidebar {
+  border-radius: 0 1rem 1rem 0;
+}
+
+.theme-ninos-day h1,
+.theme-ninos-day h2,
+.theme-ninos-night h1,
+.theme-ninos-night h2 {
+  font-weight: 700;
+}
+
+.theme-ninos-day .vet-card,
+.theme-ninos-night .vet-card,
+.theme-ninos-day .vet-panel,
+.theme-ninos-night .vet-panel {
+  border-radius: 1rem;
+}

@@ -1,0 +1,315 @@
+/*
+ * theme-contrast.css — Legibilidad automática según tema claro/oscuro.
+ * html[data-theme-mode="light"]  → texto oscuro en contenido
+ * html[data-theme-mode="dark"]   → texto claro en contenido
+ */
+
+/* ─── Contenido principal ─── */
+html[data-theme-mode="light"] .vet-main-area,
+html[data-theme-mode="light"] .vet-admin {
+  color: var(--color-text-base);
+}
+
+html[data-theme-mode="dark"] .vet-main-area,
+html[data-theme-mode="dark"] .vet-admin {
+  color: var(--color-text-base);
+}
+
+/* Superficies (tarjetas, paneles, blanco) */
+html[data-theme-mode="light"] .vet-main-area .bg-white,
+html[data-theme-mode="light"] .vet-main-area .vet-card,
+html[data-theme-mode="light"] .vet-main-area .vet-panel,
+html[data-theme-mode="light"] .vet-main-area .vet-stat-card,
+html[data-theme-mode="light"] .vet-main-area .vet-filter-panel,
+html[data-theme-mode="light"] .vet-main-area .vet-matrix-wrap,
+html[data-theme-mode="light"] .vet-admin [role="dialog"] > div,
+html[data-theme-mode="light"] .theme-menu,
+html[data-theme-mode="light"] .user-menu {
+  color: var(--color-text-base) !important;
+}
+
+html[data-theme-mode="dark"] .vet-main-area .bg-white,
+html[data-theme-mode="dark"] .vet-main-area .vet-card,
+html[data-theme-mode="dark"] .vet-main-area .vet-panel,
+html[data-theme-mode="dark"] .vet-main-area .vet-stat-card,
+html[data-theme-mode="dark"] .vet-main-area .vet-filter-panel,
+html[data-theme-mode="dark"] .vet-admin [role="dialog"] > div {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-base) !important;
+}
+
+/* Títulos y párrafos */
+html[data-theme-mode="light"] .vet-main-area h1,
+html[data-theme-mode="light"] .vet-main-area h2,
+html[data-theme-mode="light"] .vet-main-area h3,
+html[data-theme-mode="light"] .vet-main-area h4,
+html[data-theme-mode="light"] .vet-main-area p,
+html[data-theme-mode="light"] .vet-main-area li,
+html[data-theme-mode="light"] .vet-main-area label,
+html[data-theme-mode="light"] .vet-main-area .vet-page-title {
+  color: var(--color-text-base);
+}
+
+html[data-theme-mode="dark"] .vet-main-area h1,
+html[data-theme-mode="dark"] .vet-main-area h2,
+html[data-theme-mode="dark"] .vet-main-area h3,
+html[data-theme-mode="dark"] .vet-main-area h4,
+html[data-theme-mode="dark"] .vet-main-area p,
+html[data-theme-mode="dark"] .vet-main-area li,
+html[data-theme-mode="dark"] .vet-main-area label,
+html[data-theme-mode="dark"] .vet-main-area .vet-page-title {
+  color: var(--color-text-base);
+}
+
+/* Tailwind gray en área de contenido */
+html[data-theme-mode="light"] .vet-main-area .text-gray-900,
+html[data-theme-mode="light"] .vet-main-area .text-gray-800,
+html[data-theme-mode="light"] .vet-main-area .text-gray-700 {
+  color: var(--color-text-base) !important;
+}
+
+html[data-theme-mode="light"] .vet-main-area .text-gray-600,
+html[data-theme-mode="light"] .vet-main-area .text-gray-500,
+html[data-theme-mode="light"] .vet-main-area .text-gray-400 {
+  color: var(--color-text-muted) !important;
+}
+
+html[data-theme-mode="dark"] .vet-main-area .text-gray-900,
+html[data-theme-mode="dark"] .vet-main-area .text-gray-800,
+html[data-theme-mode="dark"] .vet-main-area .text-gray-700,
+html[data-theme-mode="dark"] .vet-main-area .text-gray-600,
+html[data-theme-mode="dark"] .vet-main-area .text-gray-500,
+html[data-theme-mode="dark"] .vet-main-area .text-gray-400,
+html[data-theme-mode="dark"] .vet-main-area .text-gray-300 {
+  color: var(--color-text-muted) !important;
+}
+
+html[data-theme-mode="dark"] .vet-main-area .text-black {
+  color: var(--color-text-base) !important;
+}
+
+/* text-white suelto en fondos claros → texto oscuro */
+html[data-theme-mode="light"] .vet-main-area .text-white {
+  color: var(--color-text-base) !important;
+}
+
+/* Botones con fondo de color mantienen texto claro */
+html[data-theme-mode="light"] .vet-main-area button.text-white,
+html[data-theme-mode="light"] .vet-main-area a.text-white,
+html[data-theme-mode="light"] .vet-main-area .btn-vet-primary,
+html[data-theme-mode="light"] .vet-main-area [class*="bg-emerald-"].text-white,
+html[data-theme-mode="light"] .vet-main-area [class*="bg-green-"].text-white,
+html[data-theme-mode="light"] .vet-main-area [class*="bg-orange-"].text-white,
+html[data-theme-mode="light"] .vet-main-area [class*="bg-blue-"].text-white {
+  color: var(--color-on-primary) !important;
+}
+
+/* Formularios */
+html[data-theme-mode="light"] .vet-admin input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme-mode="light"] .vet-admin select,
+html[data-theme-mode="light"] .vet-admin textarea {
+  color: var(--color-text-base) !important;
+  background-color: var(--color-surface) !important;
+}
+
+html[data-theme-mode="dark"] .vet-admin input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme-mode="dark"] .vet-admin select,
+html[data-theme-mode="dark"] .vet-admin textarea {
+  color: var(--color-text-base) !important;
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Tablas — celdas */
+html[data-theme-mode="light"] .vet-admin table tbody td,
+html[data-theme-mode="light"] .vet-admin .vet-list-table [class*="TableCell"],
+html[data-theme-mode="light"] .vet-admin .vet-matrix-table tbody td {
+  color: var(--color-text-base) !important;
+  background-color: var(--color-surface) !important;
+}
+
+html[data-theme-mode="dark"] .vet-admin table tbody td,
+html[data-theme-mode="dark"] .vet-admin .vet-list-table [class*="TableCell"],
+html[data-theme-mode="dark"] .vet-admin .vet-matrix-table .vet-matrix-cell {
+  color: var(--color-text-base) !important;
+}
+
+/* Encabezados de tabla — contraste según fondo del encabezado */
+.vet-admin .vet-list-table thead th,
+.vet-admin .vet-list-table [class*="TableHeadCell"],
+.vet-admin .vet-matrix-table thead th {
+  color: var(--color-on-matrix-head) !important;
+}
+
+.vet-admin table thead th {
+  color: var(--color-on-table-head, var(--color-on-matrix-head)) !important;
+}
+
+/* Menús desplegables (header) */
+.user-menu,
+.theme-menu {
+  background: var(--color-surface) !important;
+  color: var(--color-text-base) !important;
+  border-color: var(--color-border) !important;
+}
+
+.user-menu__header p,
+.user-menu__item,
+.theme-menu__item,
+.theme-menu__hint {
+  color: var(--color-text-base) !important;
+}
+
+.user-menu__header p:last-child,
+.theme-menu__hint {
+  color: var(--color-text-muted) !important;
+}
+
+.theme-menu__item--active {
+  background: var(--color-primary-light) !important;
+  color: var(--color-primary-hover) !important;
+}
+
+/* Sidebar y header — siempre usan sus tokens propios */
+.vet-sidebar,
+.vet-sidebar-inner,
+.vet-header {
+  color: var(--color-sidebar-text);
+}
+
+.vet-header {
+  color: var(--color-header-text);
+}
+
+/* Búsqueda global en header */
+.vet-header input {
+  color: var(--color-header-text) !important;
+}
+
+.vet-header input::placeholder {
+  color: color-mix(in srgb, var(--color-header-text) 55%, transparent) !important;
+}
+
+/* Flowbite dark: classes en temas claros */
+html[data-theme-mode="light"] .vet-main-area .dark\:bg-gray-800,
+html[data-theme-mode="light"] .vet-main-area .dark\:bg-gray-700 {
+  background-color: var(--color-surface) !important;
+}
+
+html[data-theme-mode="light"] .vet-main-area .dark\:text-gray-200,
+html[data-theme-mode="light"] .vet-main-area .dark\:text-gray-400 {
+  color: var(--color-text-base) !important;
+}
+
+html[data-theme-mode="dark"] .vet-main-area .dark\:bg-gray-800 {
+  background-color: var(--color-surface) !important;
+}
+
+html[data-theme-mode="dark"] .vet-main-area .dark\:text-gray-200 {
+  color: var(--color-text-base) !important;
+}
+
+html[data-theme-mode="dark"] .vet-main-area .dark\:text-gray-400 {
+  color: var(--color-text-muted) !important;
+}
+
+/* Placeholder legible */
+html[data-theme-mode="light"] .vet-admin input::placeholder,
+html[data-theme-mode="light"] .vet-admin textarea::placeholder {
+  color: var(--color-text-muted) !important;
+  opacity: 0.85;
+}
+
+html[data-theme-mode="dark"] .vet-admin input::placeholder,
+html[data-theme-mode="dark"] .vet-admin textarea::placeholder {
+  color: var(--color-text-muted) !important;
+  opacity: 0.75;
+}
+
+/* ─── Tarjetas y gráficos: SIEMPRE legibles ─── */
+.vet-main-area .vet-card,
+.vet-main-area .vet-chart-card,
+.vet-main-area .vet-panel,
+.vet-main-area .vet-stat-card {
+  background-color: #ffffff !important;
+  color: var(--color-text-base) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.vet-main-area .vet-page-title,
+.vet-main-area h1,
+.vet-main-area h2,
+.vet-main-area h3 {
+  color: var(--color-text-base) !important;
+}
+
+/* ApexCharts — forzar texto legible */
+.vet-chart-card .apexcharts-title-text,
+.vet-chart-card .apexcharts-subtitle-text,
+.vet-chart-card .apexcharts-legend-text,
+.vet-chart-card .apexcharts-text,
+.vet-chart-card .apexcharts-yaxis-label,
+.vet-chart-card .apexcharts-xaxis-label,
+.vet-chart-card .apexcharts-datalabel,
+.vet-main-area .apexcharts-title-text,
+.vet-main-area .apexcharts-legend-text,
+.vet-main-area .apexcharts-text,
+.vet-main-area .apexcharts-yaxis-label,
+.vet-main-area .apexcharts-xaxis-label {
+  fill: var(--color-text-base) !important;
+  color: var(--color-text-base) !important;
+}
+
+.vet-chart-card .apexcharts-gridline,
+.vet-main-area .apexcharts-gridline {
+  stroke: var(--color-border) !important;
+}
+
+.vet-chart-card .apexcharts-tooltip,
+.vet-main-area .apexcharts-tooltip {
+  background: #ffffff !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-base) !important;
+}
+
+.vet-chart-card .apexcharts-tooltip-title,
+.vet-main-area .apexcharts-tooltip-title {
+  background: var(--color-primary-light) !important;
+  color: var(--color-text-base) !important;
+  border-bottom-color: var(--color-border) !important;
+}
+
+/* Footer legible con variables */
+.vet-footer {
+  background: linear-gradient(180deg, var(--color-surface-hover) 0%, var(--color-background) 100%) !important;
+  color: var(--color-text-base) !important;
+  border-color: var(--color-border) !important;
+}
+
+.vet-footer p,
+.vet-footer strong {
+  color: var(--color-text-muted) !important;
+}
+
+.vet-footer strong {
+  color: var(--color-primary) !important;
+}
+
+/* Sidebar — texto legible en fondo claro u oscuro */
+.vet-sidebar .text-white,
+.vet-sidebar-inner .border-b p {
+  color: var(--color-sidebar-text) !important;
+}
+
+.vet-sidebar label,
+.vet-sidebar .text-emerald-50 {
+  color: var(--color-sidebar-text-muted) !important;
+}
+
+.vet-sidebar .text-emerald-200,
+.vet-sidebar .text-emerald-300,
+.vet-sidebar .text-emerald-300\/70,
+.vet-sidebar .text-emerald-300\/80,
+.vet-sidebar .text-emerald-400\/70 {
+  color: var(--color-sidebar-text-muted) !important;
+}

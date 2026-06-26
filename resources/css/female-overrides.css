@@ -1,0 +1,235 @@
+/* female-overrides.css: Fuerza tema femenino global para fondo y texto en todos los elementos principales */
+
+/* Mejora visual para checkboxes y radios en tema femenino */
+.theme-female .estado-general-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2em;
+  margin-bottom: 1em;
+}
+.theme-female .estado-general-radio-group .fwb-radio {
+  min-width: 110px;
+  flex: 1 1 110px;
+  max-width: 200px;
+  box-sizing: border-box;
+}
+.theme-female .estado-general-radio-group .fwb-radio label {
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+
+.theme-female input[type="checkbox"],
+.theme-female input[type="radio"] {
+  width: 1.25em;
+  height: 1.25em;
+  accent-color: #DB7093;
+  border: 2px solid #D8BFD8 !important;
+  border-radius: 0.4em;
+  background-color: #fff;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  box-shadow: 0 1px 4px 0 #fadadd33;
+}
+.theme-female input[type="checkbox"]:focus,
+.theme-female input[type="radio"]:focus {
+  outline: 2px solid #D8BFD8 !important;
+  box-shadow: 0 0 0 2px #d8bfd8cc;
+  border-color: #DB7093 !important;
+}
+.theme-female input[type="checkbox"]:checked,
+.theme-female input[type="radio"]:checked {
+  background-color: #DB7093 !important;
+  border-color: #DB7093 !important;
+  box-shadow: 0 0 0 2px #d8bfd899;
+}
+.theme-female label {
+  color: var(--color-text-base) !important;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+.theme-female label input[type="checkbox"],
+.theme-female label input[type="radio"] {
+  margin-right: 0.5em;
+  vertical-align: middle;
+}
+
+
+html.theme-female, body.theme-female, .theme-female {
+  background-color: var(--color-background) !important;
+  color: var(--color-text-base) !important;
+  font-family: 'Poppins', 'Roboto', 'Open Sans', Arial, sans-serif !important;
+}
+
+/* Elimina la regla global de color universal para evitar que los íconos desaparezcan */
+/* Solo aplica color de texto base al body y elementos principales */
+.theme-female, .theme-female body {
+  color: var(--color-text-base) !important;
+  font-family: 'Poppins', 'Roboto', 'Open Sans', Arial, sans-serif !important;
+}
+
+.theme-female * {
+  border-color: var(--color-border) !important;
+  border-radius: 0.75rem !important;
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+
+.theme-female i.fa, .theme-female i.fa-solid, .theme-female i.fa-regular, .theme-female i.fa-light, .theme-female i.fa-duotone, .theme-female i.fa-brands, .theme-female svg, .theme-female .fa, .theme-female a {
+  color: #8B5CF6 !important;
+  text-decoration: none !important;
+  transition: color 0.2s;
+}
+.theme-female a.active, .theme-female a.router-link-active, .theme-female a.selected {
+  color: #D8BFD8 !important;
+  font-weight: bold;
+}
+.theme-female a:hover {
+  color: #DB7093 !important;
+}
+
+.theme-female .fa-palette,
+.theme-female .fa-sun,
+.theme-female .fa-moon,
+.theme-female .fa-venus,
+.theme-female .fa-low-vision {
+  color: #DB7093 !important;
+}
+
+.theme-female ul li a i.fa-solid {
+  color: #DB7093 !important;
+}
+
+.theme-female ul li a.selected i.fa-solid {
+  color: #8B5CF6 !important;
+}
+
+
+.theme-female .theme-icon {
+  color: #DB7093 !important;
+}
+
+.theme-female .theme-icon.selected {
+  color: #8B5CF6 !important;
+}
+
+
+.theme-female .navbar, .theme-female .footer {
+  background-color: var(--color-navbar) !important;
+  color: var(--color-text-base) !important;
+  box-shadow: 0 2px 8px 0 #fadadd44;
+}
+
+.theme-female .card, .theme-female .container, .theme-female .bg-white {
+  background-color: var(--color-card) !important;
+  color: var(--color-text-base) !important;
+  box-shadow: 0 2px 8px 0 #fadadd33;
+}
+
+
+/* Elimina la regla universal de color aquí también para evitar herencia no deseada */
+
+
+.theme-female h1,
+.theme-female h2,
+.theme-female h3,
+.theme-female h4,
+.theme-female h5,
+.theme-female h6,
+.theme-female .apexcharts-title,
+.theme-female .apexcharts-legend-text,
+.theme-female .apexcharts-text,
+.theme-female .apexcharts-yaxis-label,
+.theme-female .apexcharts-xaxis-label {
+  color: var(--color-text-base) !important;
+}
+
+.theme-female .apexcharts-title-text,
+.theme-female .apexcharts-legend-text,
+.theme-female .apexcharts-text tspan {
+  fill: var(--color-text-base) !important;
+  color: var(--color-text-base) !important;
+}
+
+.theme-female .bg-white,
+.theme-female .bg-gray-50,
+.theme-female .bg-gray-100,
+.theme-female .bg-gray-200,
+.theme-female .bg-background,
+.theme-female .container,
+.theme-female .border-t,
+.theme-female .shadow,
+.theme-female .card,
+.theme-female .rounded-lg,
+.theme-female .navbar,
+.theme-female .sidebar,
+.theme-female .footer {
+  background-color: var(--color-background-secondary) !important;
+  color: var(--color-text-base) !important;
+  border-color: var(--color-border) !important;
+}
+
+.theme-female .text-gray-500,
+.theme-female .text-gray-700,
+.theme-female .text-gray-900,
+.theme-female .text-black {
+  color: var(--color-text-base) !important;
+}
+
+.theme-female .text-gray-400 {
+  color: var(--color-text-muted) !important;
+}
+
+.theme-female a {
+  color: var(--color-primary) !important;
+}
+
+.theme-female .btn,
+.theme-female button {
+  background-color: var(--color-primary) !important;
+  color: var(--color-text-base) !important;
+  box-shadow: 0 2px 8px 0 #d8bfd844;
+  border-radius: 0.75rem !important;
+  font-weight: 600;
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+.theme-female .btn:hover,
+.theme-female button:hover {
+  background-color: var(--color-primary-hover) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 16px 0 #db709344;
+}
+
+.theme-female a {
+  color: var(--color-text-muted) !important;
+  transition: color 0.3s;
+}
+.theme-female a:hover {
+  color: var(--color-primary-hover) !important;
+}
+
+
+.theme-female input,
+.theme-female select,
+.theme-female textarea {
+  background-color: #fff !important;
+  color: var(--color-text-base) !important;
+  border-color: var(--color-border) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 1px 4px 0 #fadadd33;
+  font-family: 'Poppins', 'Roboto', 'Open Sans', Arial, sans-serif !important;
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+.theme-female input:focus,
+.theme-female select:focus,
+.theme-female textarea:focus {
+  outline: 2px solid var(--color-primary) !important;
+  box-shadow: 0 0 0 2px #d8bfd8cc;
+}
+
+
+.theme-female input::placeholder,
+.theme-female textarea::placeholder {
+  color: var(--color-text-muted) !important;
+  opacity: 1;
+}

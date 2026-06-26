@@ -1,0 +1,53 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Usuario;
+use Tests\JetstreamTestCase;
+
+class UpdatePasswordTest extends JetstreamTestCase
+{
+
+    public function test_password_can_be_updated(): void
+    {
+        $this->actingAs($user = Usuario::factory()->create());
+
+        $this->put('/user/password', [
+            'current_password' => 'password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ]);
+
+        $this->assertTrue(Hash::check('new-password', $user->fresh()->password));
+    }
+
+    public function test_current_password_must_be_correct(): void
+    {
+        $this->actingAs($user = Usuario::factory()->create());
+
+        $response = $this->put('/user/password', [
+            'current_password' => 'wrong-password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ]);
+
+        $response->assertSessionHasErrors();
+
+        $this->assertTrue(Hash::check('password', $user->fresh()->password));
+    }
+
+    public function test_new_passwords_must_match(): void
+    {
+        $this->actingAs($user = Usuario::factory()->create());
+
+        $response = $this->put('/user/password', [
+            'current_password' => 'password',
+            'password' => 'new-password',
+            'password_confirmation' => 'wrong-password',
+        ]);
+
+        $response->assertSessionHasErrors();
+
+        $this->assertTrue(Hash::check('password', $user->fresh()->password));
+    }
+}
