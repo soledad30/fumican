@@ -28,7 +28,7 @@ const estadoBadge = {
     en_atencion: "blue",
     completada: "green",
     cancelada: "red",
-    no_asistio: "dark",
+    no_asistio: "purple",
 };
 
 function formatearFecha(fecha) {

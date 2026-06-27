@@ -567,6 +567,19 @@
   vertical-align: middle;
 }
 
+.vet-btn-no-asistio {
+  background-color: #fb923c !important;
+  border-color: #ea580c !important;
+  color: #1f2937 !important;
+  font-weight: 600;
+}
+
+.vet-btn-no-asistio:hover {
+  background-color: #f97316 !important;
+  border-color: #c2410c !important;
+  color: #111827 !important;
+}
+
 .vet-main-area .vet-filter-panel label {
   color: var(--color-text-base) !important;
   font-weight: 500;

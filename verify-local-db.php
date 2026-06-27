@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Hash;
 $checks = [];
 
 $checks['usar_bd_grupo'] = config('tablas.usar_bd_grupo') === false;
-$checks['db_sqlite'] = config('database.default') === 'sqlite';
+$checks['db_local'] = in_array(config('database.default'), ['sqlite', 'pgsql', 'mysql'], true);
 $checks['usuarios'] = Usuario::count() >= 2;
 $checks['roles'] = Rol::count() >= 4;
 $checks['permisos'] = Permiso::count() >= 10;

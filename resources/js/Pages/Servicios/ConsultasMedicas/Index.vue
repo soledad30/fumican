@@ -169,7 +169,7 @@ const estadoBadge = {
     en_atencion: "blue",
     completada: "green",
     cancelada: "red",
-    no_asistio: "dark",
+    no_asistio: "purple",
 };
 
 const transicionesRapidas = {
@@ -177,13 +177,41 @@ const transicionesRapidas = {
         { estado: "en_atencion", label: "Atender", color: "blue" },
         { estado: "completada", label: "Completar", color: "green" },
         { estado: "cancelada", label: "Cancelar", color: "red" },
-        { estado: "no_asistio", label: "No asistió", color: "dark" },
+        { estado: "no_asistio", label: "No asistió", color: "alternative", btnClass: "vet-btn-no-asistio" },
     ],
     en_atencion: [
         { estado: "completada", label: "Completar", color: "green" },
         { estado: "cancelada", label: "Cancelar", color: "red" },
     ],
 };
+
+function esFechaPasada(consultation) {
+    return esReservaVencida(consultation);
+}
+
+function esReservaVencida(consultation) {
+    const fecha = normalizarFechaYmd(consultation.fecha);
+    if (!fecha) return false;
+
+    const hora = consultation.hora
+        ? String(consultation.hora).slice(0, 8)
+        : "23:59:59";
+
+    const reserva = new Date(`${fecha}T${hora}`);
+    if (Number.isNaN(reserva.getTime())) return false;
+
+    return reserva.getTime() < Date.now();
+}
+
+function transicionesParaConsulta(consultation) {
+    const lista = transicionesRapidas[consultation.estado] || [];
+    return lista.filter((t) => {
+        if (t.estado === "no_asistio") {
+            return esFechaPasada(consultation);
+        }
+        return true;
+    });
+}
 
 function fechaHoyYmd() {
     const d = new Date();
@@ -230,12 +258,21 @@ function confirmarAtencionEmergencia() {
 }
 
 function resolveConsultaId(consultation) {
-    const id = consultation?.id ?? editingConsultaId.value ?? selectedConsultation.value?.id;
-    return id != null && id !== "" ? Number(id) : null;
+    const raw =
+        consultation?.id ??
+        consultation?.consulta_id ??
+        editingConsultaId.value ??
+        selectedConsultation.value?.id;
+    const id = Number(raw);
+    return Number.isFinite(id) && id > 0 ? id : null;
 }
 
 function urlCambiarEstadoConsulta(id) {
-    return `/servicios/consultas-medicas/${id}/estado`;
+    const consultaId = Number(id);
+    if (!Number.isFinite(consultaId) || consultaId <= 0) {
+        throw new Error(`ID de consulta inválido: ${id}`);
+    }
+    return route("consultas-medicas.cambiar-estado", { id: consultaId });
 }
 
 function urlActualizarConsulta(id) {
@@ -255,10 +292,11 @@ async function cambiarEstado(consultation, nuevoEstado, emergencia = false) {
 
     loading.value = true;
     try {
-        const { data } = await axios.patch(
-            urlCambiarEstadoConsulta(consultaId),
-            { estado: nuevoEstado, emergencia }
-        );
+        const url = urlCambiarEstadoConsulta(consultaId);
+        const { data } = await axios.post(url, {
+            estado: nuevoEstado,
+            emergencia,
+        });
         displayToast("success", data.message);
         router.reload({ only: ["medicalConsultations"] });
     } catch (e) {
@@ -805,14 +843,14 @@ async function submitDelete() {
                         consultation.reason
                     }}</FwbTableCell>
                     <FwbTableCell class="vet-consultas-acciones">
-                        <template v-if="canEditMedCons && transicionesRapidas[consultation.estado]">
+                        <template v-if="canEditMedCons && transicionesParaConsulta(consultation).length">
                             <FwbButton
-                                v-for="t in transicionesRapidas[consultation.estado]"
+                                v-for="t in transicionesParaConsulta(consultation)"
                                 :key="t.estado"
                                 type="button"
                                 size="xs"
                                 :color="t.color"
-                                class="mr-1"
+                                :class="['mr-1', t.btnClass].filter(Boolean)"
                                 @click="solicitarCambiarEstado(consultation, t.estado)"
                             >{{ t.label }}</FwbButton>
                         </template>

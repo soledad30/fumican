@@ -3,6 +3,7 @@
 namespace App\Repositories\Servicios;
 
 use App\Models\Servicios\Mascota;
+use App\Support\BusquedaTexto;
 
 class MascotaRepository
 {
@@ -43,15 +44,7 @@ class MascotaRepository
         $query = $this->model->with(['owner', 'breed.specie']);
 
         if (! empty($filters['search_term'])) {
-            $term = $filters['search_term'];
-            $query->where(function ($q) use ($term) {
-                $q->where('nombre', 'like', "%{$term}%")
-                    ->orWhereHas('owner', function ($qOwner) use ($term) {
-                        $qOwner->where('nombre', 'like', "%{$term}%")
-                            ->orWhere('apellido', 'like', "%{$term}%")
-                            ->orWhere('ci', 'like', "%{$term}%");
-                    });
-            });
+            $this->aplicarBusquedaTexto($query, $filters['search_term']);
         }
 
         return $query->orderBy('actualizado_en', 'desc')->paginate()->appends($filters);
@@ -67,18 +60,21 @@ class MascotaRepository
 
     public function autocompleteSearch(string $term)
     {
-        return $this->model
-            ->with(['owner', 'breed.specie'])
-            ->where(function ($q) use ($term) {
-                $q->where('nombre', 'like', "%{$term}%")
-                    ->orWhereHas('owner', function ($qOwner) use ($term) {
-                        $qOwner->where('nombre', 'like', "%{$term}%")
-                            ->orWhere('apellido', 'like', "%{$term}%")
-                            ->orWhere('ci', 'like', "%{$term}%");
-                    });
-            })
-            ->orderBy('nombre', 'asc')
-            ->take(10)
-            ->get();
+        $query = $this->model->with(['owner', 'breed.specie']);
+        $this->aplicarBusquedaTexto($query, $term);
+
+        return $query->orderBy('nombre', 'asc')->take(10)->get();
+    }
+
+    private function aplicarBusquedaTexto($query, string $term): void
+    {
+        $query->where(function ($q) use ($term) {
+            BusquedaTexto::whereLike($q, 'nombre', $term);
+            $q->orWhereHas('owner', function ($qOwner) use ($term) {
+                BusquedaTexto::whereLike($qOwner, 'nombre', $term);
+                BusquedaTexto::whereLike($qOwner, 'apellido', $term, 'or');
+                BusquedaTexto::whereLike($qOwner, 'ci', $term, 'or');
+            });
+        });
     }
 }

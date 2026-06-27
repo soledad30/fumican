@@ -92,8 +92,8 @@ Use un usuario **propietario** o **administrador** para mostrar todo; cierre con
 ### Comandos útiles
 
 ```bash
-# Migrar solo auditoría
-php artisan migrate --database=auditoria --path=database/migrations/2025_06_26_000001_create_auditoria_tables.php --force
+# Esquema auditoría (SQLite) — normalmente automático al arrancar
+sqlite3 database/auditoria.sqlite < database/schema/auditoria.sql
 
 # Seeders completos (solo USAR_BD_GRUPO=false)
 php artisan db:seed

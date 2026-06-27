@@ -3,6 +3,7 @@
 namespace App\Repositories\Servicios;
 
 use App\Models\Servicios\ConsultaMedica;
+use App\Support\BusquedaTexto;
 
 class ConsultaMedicaRepository
 {
@@ -40,14 +41,14 @@ class ConsultaMedicaRepository
         if (! empty($filters['search_term'])) {
             $term = $filters['search_term'];
             $query->where(function ($q) use ($term) {
-                $q->where('motivo', 'like', "%{$term}%")
-                    ->orWhereHas('pet', function ($qPet) use ($term) {
-                        $qPet->where('nombre', 'like', "%{$term}%")
-                            ->orWhereHas('owner', function ($qOwner) use ($term) {
-                                $qOwner->where('nombre', 'like', "%{$term}%")
-                                    ->orWhere('apellido', 'like', "%{$term}%");
-                            });
+                BusquedaTexto::whereLike($q, 'motivo', $term);
+                $q->orWhereHas('pet', function ($qPet) use ($term) {
+                    BusquedaTexto::whereLike($qPet, 'nombre', $term);
+                    $qPet->orWhereHas('owner', function ($qOwner) use ($term) {
+                        BusquedaTexto::whereLike($qOwner, 'nombre', $term);
+                        BusquedaTexto::whereLike($qOwner, 'apellido', $term, 'or');
                     });
+                });
             });
         }
 

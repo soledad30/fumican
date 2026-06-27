@@ -15,8 +15,10 @@ class ConsultaMedicaService
 
     public function getAllWithDetails()
     {
+        $this->marcarReservasVencidasComoNoAsistio();
+
         $medicalConsultations = $this->repository->getAllWithDetails();
-        // Llamar al método privado para añadir detalles
+
         return $this->addPetDetailsToConsultations($medicalConsultations);
     }
 
@@ -37,8 +39,10 @@ class ConsultaMedicaService
 
     public function search(array $filters)
     {
-        $medicalConsultations = $this->repository->search($filters, true); // Paginated
-        // Llamar al método privado para añadir detalles
+        $this->marcarReservasVencidasComoNoAsistio();
+
+        $medicalConsultations = $this->repository->search($filters, true);
+
         return $this->addPetDetailsToConsultations($medicalConsultations);
     }
 
@@ -62,6 +66,12 @@ class ConsultaMedicaService
             }
         }
 
+        if ($destino === EstadoConsultaEnum::NO_ASISTIO && $consulta->fecha) {
+            if (! $this->reservaYaVencio($consulta)) {
+                throw new InvalidArgumentException('Solo puede marcar «No asistió» cuando ya pasó la fecha y hora de la cita.');
+            }
+        }
+
         if ($actual && ! $actual->puedeTransicionarA($destino)) {
             throw new InvalidArgumentException(
                 'No se puede cambiar de «'.(EstadoConsultaEnum::labels()[$actual->value] ?? $actual->value)
@@ -79,6 +89,42 @@ class ConsultaMedicaService
         $this->repository->update($datos, $id);
 
         return $consulta->fresh(['servicio', 'mascota.propietario', 'veterinario']);
+    }
+
+    public function marcarReservasVencidasComoNoAsistio(): int
+    {
+        $actualizadas = 0;
+
+        ConsultaMedica::query()
+            ->where('estado', EstadoConsultaEnum::RESERVADA->value)
+            ->whereNotNull('fecha')
+            ->each(function (ConsultaMedica $consulta) use (&$actualizadas) {
+                if (! $this->reservaYaVencio($consulta)) {
+                    return;
+                }
+
+                $consulta->update(['estado' => EstadoConsultaEnum::NO_ASISTIO->value]);
+                $actualizadas++;
+            });
+
+        return $actualizadas;
+    }
+
+    private function reservaYaVencio(ConsultaMedica $consulta): bool
+    {
+        if (! $consulta->fecha) {
+            return false;
+        }
+
+        $fecha = Carbon::parse($consulta->fecha)->format('Y-m-d');
+
+        $hora = $consulta->hora
+            ? Carbon::parse($consulta->hora)->format('H:i:s')
+            : '23:59:59';
+
+        $inicioReserva = Carbon::parse($fecha.' '.$hora);
+
+        return $inicioReserva->isPast();
     }
 
     /**

@@ -7,7 +7,7 @@ use App\Models\Usuario;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Artisan;
+use App\Support\InstalarEsquemaSql;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -37,14 +37,6 @@ class AppServiceProvider extends ServiceProvider
             File::put($dbPath, '');
         }
 
-        try {
-            Artisan::call('migrate', [
-                '--database' => 'auditoria',
-                '--path' => 'database/migrations/2025_06_26_000001_create_auditoria_tables.php',
-                '--force' => true,
-            ]);
-        } catch (\Throwable) {
-            // La migración puede ejecutarse manualmente
-        }
+        InstalarEsquemaSql::aplicarSiFalta('auditoria', 'auditoria.sql', 'bitacora');
     }
 }

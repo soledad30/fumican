@@ -46,6 +46,42 @@ npm install
 | `APP_LOCALE=es` | Interfaz y validaciones en español. |
 | `DB_*` | Conexión principal (PostgreSQL del grupo o local). |
 
+### Entorno local con PostgreSQL (`clinica_veterinaria`)
+
+En `.env`:
+
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=clinica_veterinaria
+DB_USERNAME=postgres
+DB_PASSWORD=admin123
+USAR_BD_GRUPO=false
+```
+
+Si la BD ya existe pero le faltan columnas o tablas del proyecto, aplique el complemento SQL (idempotente, no borra datos):
+
+```bash
+psql -U postgres -h 127.0.0.1 -d clinica_veterinaria -f database/schema/clinica_veterinaria_complemento.sql
+```
+
+Para **instalación desde cero** (borra tablas del esquema del proyecto):
+
+```bash
+createdb -U postgres -E UTF8 clinica_veterinaria
+psql -U postgres -h 127.0.0.1 -d clinica_veterinaria -f database/schema/clinica_veterinaria_base.sql
+php artisan db:seed
+```
+
+Migrar solo la auditoría (SQLite) — se aplica sola al arrancar la app, o manualmente:
+
+```bash
+sqlite3 database/auditoria.sqlite < database/schema/auditoria.sql
+```
+
+El esquema de negocio vive en `database/schema/` (SQL en español). **No hay carpeta `database/migrations`.**
+
 ### Entorno 100% local (SQLite)
 
 En `.env`:
@@ -65,21 +101,13 @@ php artisan fumican:install-local --fresh
 O manualmente:
 
 ```bash
-# Crear archivo SQLite (si no existe)
 type nul > database\database.sqlite
-
-php artisan migrate --path=database/migrations/local --force
-php artisan db:seed
-php artisan migrate --database=auditoria --path=database/migrations/2025_06_26_000001_create_auditoria_tables.php --force
+php artisan fumican:install-local
 ```
 
 ### Base de datos de auditoría (SQLite)
 
-Se crea automáticamente al arrancar la app si no existe. También puede migrarse manualmente:
-
-```bash
-php artisan migrate --database=auditoria --path=database/migrations/2025_06_26_000001_create_auditoria_tables.php --force
-```
+Se crea automáticamente al arrancar la app si no existe (`database/schema/auditoria.sql`).
 
 **No modificar el esquema de `db_grupo23sa`.** Las tablas de bitácora, visitas, menús dinámicos y planes de pago viven en SQLite.
 
@@ -164,6 +192,7 @@ resources/js/
   Pages/                # Vistas Inertia (Servicios/, Ventas/, Usuarios/, Reportes/)
   Composables/          # usePermisos, useTheme, etc.
 database/
+  schema/               # SQL en español (PostgreSQL, SQLite, auditoría)
   auditoria.sqlite      # BD auxiliar (generada en runtime)
   seeders/              # Solo con USAR_BD_GRUPO=false
 config/

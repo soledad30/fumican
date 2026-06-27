@@ -34,5 +34,6 @@ return [
         'detalles_nota_compra' => 'detalles_nota_compra',
         'notas_venta' => 'notas_venta',
         'detalles_nota_venta' => 'detalles_nota_venta',
+        'veterinarios' => 'veterinarios',
     ],
 ];
