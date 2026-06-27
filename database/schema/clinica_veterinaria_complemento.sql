@@ -135,15 +135,22 @@ DO $$ BEGIN
     END IF;
 END $$;
 
-UPDATE consultas_medicas cm
-SET servicio_id = cs.servicio_id
-FROM (
-    SELECT DISTINCT ON (consulta_id) consulta_id, servicio_id
-    FROM consulta_servicios
-    ORDER BY consulta_id, id
-) cs
-WHERE cm.id = cs.consulta_id
-  AND cm.servicio_id IS NULL;
+DO $$ BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'consulta_servicios'
+    ) THEN
+        UPDATE consultas_medicas cm
+        SET servicio_id = cs.servicio_id
+        FROM (
+            SELECT DISTINCT ON (consulta_id) consulta_id, servicio_id
+            FROM consulta_servicios
+            ORDER BY consulta_id, id
+        ) cs
+        WHERE cm.id = cs.consulta_id
+          AND cm.servicio_id IS NULL;
+    END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- productos (farmacia)
@@ -252,10 +259,22 @@ ALTER TABLE consultas_medicas DROP CONSTRAINT IF EXISTS chk_consultas_estado;
 ALTER TABLE consultas_medicas ADD CONSTRAINT chk_consultas_estado
     CHECK (estado::text = ANY (ARRAY[
         'reservada'::varchar,
+        'en_espera'::varchar,
         'en_atencion'::varchar,
         'completada'::varchar,
         'cancelada'::varchar,
         'no_asistio'::varchar
     ]::text[]));
+
+-- consultas_medicas: reprogramación por llegada tarde (una vez)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'consultas_medicas' AND column_name = 'reprogramada_tarde'
+    ) THEN
+        ALTER TABLE consultas_medicas ADD COLUMN reprogramada_tarde BOOLEAN NOT NULL DEFAULT FALSE;
+    END IF;
+END $$;
 
 COMMIT;

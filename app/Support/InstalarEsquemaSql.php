@@ -16,13 +16,7 @@ class InstalarEsquemaSql
             return;
         }
 
-        $sql = File::get($path);
-        $statements = array_filter(
-            array_map('trim', preg_split('/;\s*\n/', $sql)),
-            fn (string $s) => $s !== '' && ! str_starts_with($s, '--')
-        );
-
-        foreach ($statements as $statement) {
+        foreach (self::prepararStatements(File::get($path)) as $statement) {
             if (str_starts_with(strtoupper($statement), 'PRAGMA')) {
                 DB::connection($connection)->statement($statement);
 
@@ -49,5 +43,71 @@ class InstalarEsquemaSql
             'sqlite' => 'sqlite_local.sql',
             default => 'sqlite_local.sql',
         };
+    }
+
+    /** @return list<string> */
+    private static function prepararStatements(string $sql): array
+    {
+        $statements = [];
+        $buffer = '';
+        $inDollarBlock = false;
+
+        foreach (preg_split('/\r\n|\r|\n/', $sql) as $line) {
+            $trimmed = trim($line);
+
+            if (! $inDollarBlock && ($trimmed === '' || str_starts_with($trimmed, '--'))) {
+                continue;
+            }
+
+            if (! $inDollarBlock && preg_match('/\$\$/', $line)) {
+                $inDollarBlock = true;
+            }
+
+            $buffer .= $line."\n";
+
+            if ($inDollarBlock) {
+                if (preg_match('/END\s*\$\$\s*;?\s*$/i', $trimmed) || preg_match('/\$\$\s*LANGUAGE\s+\w+\s*;?\s*$/i', $trimmed)) {
+                    $statement = self::limpiarStatement($buffer);
+                    if ($statement !== '' && ! in_array(strtoupper($statement), ['BEGIN', 'COMMIT'], true)) {
+                        $statements[] = $statement;
+                    }
+                    $buffer = '';
+                    $inDollarBlock = false;
+                }
+
+                continue;
+            }
+
+            if (str_ends_with($trimmed, ';')) {
+                $statement = self::limpiarStatement($buffer);
+                if ($statement !== '' && ! in_array(strtoupper($statement), ['BEGIN', 'COMMIT'], true)) {
+                    $statements[] = $statement;
+                }
+                $buffer = '';
+            }
+        }
+
+        $resto = self::limpiarStatement($buffer);
+        if ($resto !== '' && ! in_array(strtoupper($resto), ['BEGIN', 'COMMIT'], true)) {
+            $statements[] = $resto;
+        }
+
+        return $statements;
+    }
+
+    private static function limpiarStatement(string $chunk): string
+    {
+        $lines = preg_split('/\r\n|\r|\n/', trim($chunk));
+        $clean = [];
+
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            if ($trimmed === '' || str_starts_with($trimmed, '--')) {
+                continue;
+            }
+            $clean[] = $line;
+        }
+
+        return trim(implode("\n", $clean));
     }
 }

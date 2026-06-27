@@ -64,10 +64,54 @@ class ConsultaMedicaRepository
             $query->where('estado', $filters['estado']);
         }
 
+        if (! empty($filters['fecha'])) {
+            $query->whereDate('fecha', $filters['fecha']);
+        }
+
+        if (! empty($filters['servicio_id'])) {
+            $query->where('servicio_id', $filters['servicio_id']);
+        }
+
+        if (! empty($filters['propietario'])) {
+            $term = $filters['propietario'];
+            $query->whereHas('mascota.propietario', function ($q) use ($term) {
+                BusquedaTexto::whereLike($q, 'nombre', $term);
+                BusquedaTexto::whereLike($q, 'apellido', $term, 'or');
+            });
+        }
+
+        if (! empty($filters['mascota'])) {
+            $term = $filters['mascota'];
+            $query->whereHas('mascota', fn ($q) => BusquedaTexto::whereLike($q, 'nombre', $term));
+        }
+
+        if (! empty($filters['motivo'])) {
+            BusquedaTexto::whereLike($query, 'motivo', $filters['motivo']);
+        }
+
         $query->orderBy('creado_en', 'desc');
 
         if ($paginate) {
             return $query->paginate()->appends($filters);
+        }
+
+        return $query->get();
+    }
+
+    public function getByFecha(string $fecha, ?array $estados = null)
+    {
+        $query = $this->model
+            ->with(['mascota.propietario', 'mascota.raza.especie', 'veterinario', 'servicio', 'pagos'])
+            ->where(function ($q) use ($fecha) {
+                $q->whereDate('fecha', $fecha)
+                    ->orWhere(function ($q2) use ($fecha) {
+                        $q2->whereNull('fecha')->whereDate('creado_en', $fecha);
+                    });
+            })
+            ->orderByRaw('COALESCE(hora, creado_en::time) ASC');
+
+        if ($estados !== null) {
+            $query->whereIn('estado', $estados);
         }
 
         return $query->get();

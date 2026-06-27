@@ -6,7 +6,7 @@ use App\Repositories\Servicios\PagoRepository;
 use App\Models\Servicios\ConsultaMedica;
 use App\Models\Servicios\Pago;
 use App\Models\Ventas\NotaVenta;
-use App\Services\Auditoria\PlanPagoService;
+use App\Services\Auditoria\CuotaCreditoService;
 use App\Support\ConsultaSaldo;
 use App\Support\NotaVentaSaldo;
 use App\Traits\RegistraBitacora;
@@ -20,7 +20,7 @@ class PagoService
 
     public function __construct(
         protected PagoRepository $repository,
-        protected PlanPagoService $planPagoService,
+        protected CuotaCreditoService $cuotaCreditoService,
     ) {}
 
     public function getAll()
@@ -127,6 +127,10 @@ class PagoService
 
     private function crearPagoCredito(array $data, float $saldoPendiente): Pago
     {
+        if (! empty($data['cuotas_plan']) && is_array($data['cuotas_plan'])) {
+            return $this->crearPagoCreditoConPlan($data, $saldoPendiente);
+        }
+
         $monto = (float) ($data['monto'] ?? $saldoPendiente);
         $numCuotas = (int) ($data['num_cuotas'] ?? 1);
         $abonoHoy = $this->esMetodoInmediato($data['metodo_pago'] ?? '')
@@ -162,10 +166,54 @@ class PagoService
             ]));
 
             if ($numCuotas > 1) {
-                $this->planPagoService->crearPlan($data, $pago->id);
+                $this->cuotaCreditoService->crearCuotas($data, $pago->id);
             }
 
             return $pago;
+        });
+    }
+
+    /**
+     * @param  array<int, array{monto: float|int, fecha: string}>  $cuotasPlan
+     */
+    private function crearPagoCreditoConPlan(array $data, float $saldoPendiente): Pago
+    {
+        $cuotasPlan = array_values($data['cuotas_plan']);
+        $suma = round(array_sum(array_column($cuotasPlan, 'monto')), 2);
+
+        if (abs($suma - $saldoPendiente) > 0.02) {
+            throw ValidationException::withMessages([
+                'cuotas_plan' => 'La suma de los pagos (Bs. '.number_format($suma, 2, '.', '').') debe igualar el saldo pendiente (Bs. '.number_format($saldoPendiente, 2, '.', '').').',
+            ]);
+        }
+
+        $inicial = $cuotasPlan[0];
+        $restantes = array_slice($cuotasPlan, 1);
+
+        return DB::transaction(function () use ($data, $inicial, $restantes) {
+            $pagoInmediato = $this->guardarPago(array_merge($data, [
+                'tipo_pago' => 'contado',
+                'monto' => (float) $inicial['monto'],
+                'fecha_pago' => $inicial['fecha'] ?? now(),
+                'concepto_pago' => count($restantes) > 0 ? 'anticipo' : 'completo',
+            ]));
+
+            if (count($restantes) === 0) {
+                return $pagoInmediato;
+            }
+
+            $montoCredito = round(array_sum(array_column($restantes, 'monto')), 2);
+            $pagoCredito = $this->guardarPago(array_merge($data, [
+                'tipo_pago' => 'credito',
+                'monto' => $montoCredito,
+                'fecha_pago' => null,
+                'id_transaccion_externa' => null,
+                'concepto_pago' => 'saldo',
+            ]));
+
+            $this->cuotaCreditoService->crearCuotasPersonalizadas($restantes, $pagoCredito->id);
+
+            return $pagoInmediato;
         });
     }
 
@@ -177,7 +225,7 @@ class PagoService
             'id_transaccion_externa' => null,
         ]));
 
-        $this->planPagoService->crearPlan($data, $pagoCredito->id);
+        $this->cuotaCreditoService->crearCuotas($data, $pagoCredito->id);
 
         return $pagoCredito;
     }

@@ -5,6 +5,9 @@ namespace App\Models;
 use App\Models\Usuarios\Rol;
 use App\Models\Ventas\NotaVenta;
 use App\Models\Servicios\ConsultaMedica;
+use App\Models\Auditoria\Bitacora;
+use App\Models\Auditoria\CuotaCredito;
+use App\Models\Ventas\MovimientoInventario;
 use App\Traits\HasPermisosBd;
 use App\Traits\SerializeDates;
 use App\Traits\UsaTimestampsEspanol;
@@ -122,6 +125,21 @@ class Usuario extends Authenticatable
     public function notasVenta(): HasMany
     {
         return $this->hasMany(NotaVenta::class, 'usuario_id');
+    }
+
+    public function bitacoras(): HasMany
+    {
+        return $this->hasMany(Bitacora::class, 'usuario_id');
+    }
+
+    public function cuotasCredito(): HasMany
+    {
+        return $this->hasMany(CuotaCredito::class, 'usuario_id');
+    }
+
+    public function movimientosInventario(): HasMany
+    {
+        return $this->hasMany(MovimientoInventario::class, 'usuario_id');
     }
 
     /** @deprecated Usar notasVenta() */

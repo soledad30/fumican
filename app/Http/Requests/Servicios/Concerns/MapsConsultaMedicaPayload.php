@@ -24,7 +24,9 @@ trait MapsConsultaMedicaPayload
         if ($withDefaults) {
             $payload['fecha'] ??= now()->toDateString();
             $payload['hora'] ??= now()->format('H:i:s');
-            $payload['estado'] ??= 'completada';
+            if (empty($payload['estado'])) {
+                $payload['estado'] = 'completada';
+            }
         }
 
         return $payload;

@@ -3,12 +3,10 @@
 namespace App\Models\Auditoria;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Bitacora extends Model
 {
-    protected $connection = 'auditoria';
-
     protected $table = 'bitacora';
 
     public $timestamps = false;
@@ -30,4 +28,9 @@ class Bitacora extends Model
         'datos_nuevos' => 'array',
         'creado_en' => 'datetime',
     ];
+
+    public function usuario(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Usuario::class, 'usuario_id');
+    }
 }

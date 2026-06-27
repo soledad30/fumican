@@ -35,5 +35,10 @@ return [
         'notas_venta' => 'notas_venta',
         'detalles_nota_venta' => 'detalles_nota_venta',
         'veterinarios' => 'veterinarios',
+        'bitacora' => 'bitacora',
+        'visitas' => 'visitas',
+        'menus' => 'menus',
+        'cuotas_credito' => 'cuotas_credito',
+        'movimientos_inventario' => 'movimientos_inventario',
     ],
 ];

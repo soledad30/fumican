@@ -31,7 +31,10 @@ Artisan::command('fumican:install-local {--fresh : Borra y recrea la base de dat
     }
 
     $this->info('Instalando esquema SQL...');
-    InstalarEsquemaSql::aplicar('auditoria', 'auditoria.sql');
+    if ($driver === 'pgsql') {
+        InstalarEsquemaSql::aplicar(config('database.default'), 'clinica_veterinaria_auditoria_pg.sql');
+        InstalarEsquemaSql::aplicar(config('database.default'), 'clinica_veterinaria_relaciones.sql');
+    }
 
     if ($driver === 'sqlite') {
         InstalarEsquemaSql::aplicar(config('database.default'), 'sqlite_local.sql');

@@ -92,14 +92,34 @@ Route::middleware([
 
         Route::prefix('consultas-medicas')->as('consultas-medicas.')->group(function () {
             Route::get('/', [ConsultaMedicaController::class, 'index'])->middleware('permiso:listar_consultas')->name('index');
+            Route::get('agenda', [ConsultaMedicaController::class, 'agenda'])->middleware('permiso:listar_consultas')->name('agenda');
             Route::get('buscar', [ConsultaMedicaController::class, 'search'])->middleware('permiso:listar_consultas')->name('search');
             Route::get('reporte', [ConsultaMedicaController::class, 'generateConsultationsReport'])->middleware('permiso:listar_consultas')->name('report');
             Route::get('mascotas/{pet}/historial-reporte', [ConsultaMedicaController::class, 'generatePetHistoryReport'])->middleware('permiso:listar_consultas')->name('historial-reporte');
             Route::post('/', [ConsultaMedicaController::class, 'store'])->middleware('permiso:crear_consultas')->name('store');
+            Route::post('iniciar-atencion', [ConsultaMedicaController::class, 'iniciarAtencion'])
+                ->middleware('permiso:editar_consultas')
+                ->name('iniciar-atencion');
             Route::match(['patch', 'post'], '{id}/estado', [ConsultaMedicaController::class, 'cambiarEstado'])
                 ->whereNumber('id')
                 ->middleware('permiso:editar_consultas')
                 ->name('cambiar-estado');
+            Route::post('{id}/registro-llegada', [ConsultaMedicaController::class, 'completarRegistroLlegada'])
+                ->whereNumber('id')
+                ->middleware('permiso:editar_consultas')
+                ->name('registro-llegada');
+            Route::post('{id}/check-in', [ConsultaMedicaController::class, 'registrarLlegada'])
+                ->whereNumber('id')
+                ->middleware('permiso:editar_consultas')
+                ->name('check-in');
+            Route::post('{id}/reprogramar', [ConsultaMedicaController::class, 'reprogramar'])
+                ->whereNumber('id')
+                ->middleware('permiso:editar_consultas')
+                ->name('reprogramar');
+            Route::post('{id}/reprogramar-tarde', [ConsultaMedicaController::class, 'reprogramarPorTarde'])
+                ->whereNumber('id')
+                ->middleware('permiso:editar_consultas')
+                ->name('reprogramar-tarde');
             Route::put('{id}', [ConsultaMedicaController::class, 'update'])->whereNumber('id')->middleware('permiso:editar_consultas')->name('update');
             Route::delete('{id}', [ConsultaMedicaController::class, 'destroy'])->whereNumber('id')->middleware('permiso:eliminar_consultas')->name('destroy');
         });

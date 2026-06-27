@@ -46,6 +46,9 @@ DROP TABLE IF EXISTS usuarios CASCADE;
 DROP TABLE IF EXISTS roles_permisos CASCADE;
 DROP TABLE IF EXISTS permisos CASCADE;
 DROP TABLE IF EXISTS roles CASCADE;
+DROP TABLE IF EXISTS menus CASCADE;
+DROP TABLE IF EXISTS visitas CASCADE;
+DROP TABLE IF EXISTS bitacora CASCADE;
 DROP TABLE IF EXISTS persona CASCADE;
 DROP TABLE IF EXISTS migrations CASCADE;
 
@@ -99,21 +102,29 @@ CREATE TABLE usuarios (
 
 CREATE TABLE password_reset_tokens (
     email VARCHAR(255) PRIMARY KEY,
+    usuario_id BIGINT DEFAULT NULL,
     token VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT NULL
+    created_at TIMESTAMP DEFAULT NULL,
+    CONSTRAINT password_reset_tokens_usuario_id_foreign FOREIGN KEY (usuario_id)
+        REFERENCES usuarios (id) ON DELETE CASCADE
 );
+
+CREATE UNIQUE INDEX password_reset_tokens_usuario_id_unique ON password_reset_tokens (usuario_id);
 
 CREATE TABLE personal_access_tokens (
     id BIGSERIAL PRIMARY KEY,
     tokenable_type VARCHAR(255) NOT NULL,
     tokenable_id BIGINT NOT NULL,
+    usuario_id BIGINT DEFAULT NULL,
     name VARCHAR(255) NOT NULL,
     token VARCHAR(64) NOT NULL UNIQUE,
     abilities TEXT DEFAULT NULL,
     last_used_at TIMESTAMP DEFAULT NULL,
     expires_at TIMESTAMP DEFAULT NULL,
     created_at TIMESTAMP DEFAULT NULL,
-    updated_at TIMESTAMP DEFAULT NULL
+    updated_at TIMESTAMP DEFAULT NULL,
+    CONSTRAINT personal_access_tokens_usuario_id_foreign FOREIGN KEY (usuario_id)
+        REFERENCES usuarios (id) ON DELETE CASCADE
 );
 
 CREATE INDEX personal_access_tokens_tokenable_type_tokenable_id_index
@@ -438,6 +449,97 @@ CREATE TABLE migrations (
     id SERIAL PRIMARY KEY,
     migration VARCHAR(255) NOT NULL,
     batch INTEGER NOT NULL
+);
+
+-- ---------------------------------------------------------------------------
+-- auditoría, crédito e historial de inventario
+-- ---------------------------------------------------------------------------
+CREATE TABLE bitacora (
+    id BIGSERIAL PRIMARY KEY,
+    usuario_id BIGINT DEFAULT NULL,
+    accion VARCHAR(50) NOT NULL,
+    modulo VARCHAR(80) NOT NULL,
+    descripcion TEXT DEFAULT NULL,
+    ip VARCHAR(45) DEFAULT NULL,
+    user_agent VARCHAR(255) DEFAULT NULL,
+    datos_anteriores TEXT DEFAULT NULL,
+    datos_nuevos TEXT DEFAULT NULL,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT bitacora_usuario_id_foreign FOREIGN KEY (usuario_id)
+        REFERENCES usuarios (id) ON DELETE SET NULL
+);
+
+CREATE TABLE visitas (
+    id BIGSERIAL PRIMARY KEY,
+    ruta VARCHAR(255) NOT NULL UNIQUE,
+    contador INTEGER NOT NULL DEFAULT 0,
+    ultima_visita TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE menus (
+    id BIGSERIAL PRIMARY KEY,
+    nombre VARCHAR(80) NOT NULL,
+    icono VARCHAR(80) DEFAULT NULL,
+    enlace VARCHAR(255) DEFAULT NULL,
+    permiso_bd VARCHAR(80) DEFAULT NULL,
+    permiso_id BIGINT DEFAULT NULL,
+    parent_id BIGINT DEFAULT NULL,
+    orden INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT menus_parent_id_foreign FOREIGN KEY (parent_id)
+        REFERENCES menus (id) ON DELETE CASCADE,
+    CONSTRAINT menus_permiso_id_foreign FOREIGN KEY (permiso_id)
+        REFERENCES permisos (id) ON DELETE SET NULL
+);
+
+CREATE TABLE cuotas_credito (
+    id BIGSERIAL PRIMARY KEY,
+    pago_id BIGINT NOT NULL,
+    usuario_id BIGINT DEFAULT NULL,
+    numero INTEGER NOT NULL,
+    monto NUMERIC(12, 2) NOT NULL,
+    fecha_vencimiento DATE NOT NULL,
+    fecha_pago TIMESTAMP DEFAULT NULL,
+    estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+    metodo_pago VARCHAR(50) DEFAULT NULL,
+    id_transaccion_externa VARCHAR(100) DEFAULT NULL,
+    creado_en TIMESTAMP DEFAULT NULL,
+    actualizado_en TIMESTAMP DEFAULT NULL,
+    CONSTRAINT cuotas_credito_pago_id_foreign FOREIGN KEY (pago_id)
+        REFERENCES pagos (id) ON DELETE CASCADE,
+    CONSTRAINT cuotas_credito_usuario_id_foreign FOREIGN KEY (usuario_id)
+        REFERENCES usuarios (id) ON DELETE SET NULL
+);
+
+CREATE INDEX cuotas_credito_pago_id_index ON cuotas_credito (pago_id);
+CREATE INDEX cuotas_credito_estado_index ON cuotas_credito (estado);
+
+CREATE TABLE movimientos_inventario (
+    id BIGSERIAL PRIMARY KEY,
+    producto_id BIGINT NOT NULL,
+    almacen_id BIGINT NOT NULL,
+    inventario_id BIGINT DEFAULT NULL,
+    detalle_nota_venta_id BIGINT DEFAULT NULL,
+    detalle_nota_compra_id BIGINT DEFAULT NULL,
+    tipo VARCHAR(20) NOT NULL,
+    cantidad INTEGER NOT NULL,
+    stock_anterior INTEGER DEFAULT NULL,
+    stock_posterior INTEGER DEFAULT NULL,
+    usuario_id BIGINT DEFAULT NULL,
+    notas TEXT DEFAULT NULL,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT movimientos_inventario_producto_id_foreign FOREIGN KEY (producto_id)
+        REFERENCES productos (id) ON DELETE CASCADE,
+    CONSTRAINT movimientos_inventario_almacen_id_foreign FOREIGN KEY (almacen_id)
+        REFERENCES almacenes (id) ON DELETE CASCADE,
+    CONSTRAINT movimientos_inventario_inventario_id_foreign FOREIGN KEY (inventario_id)
+        REFERENCES inventarios (id) ON DELETE SET NULL,
+    CONSTRAINT movimientos_inventario_detalle_nota_venta_id_foreign FOREIGN KEY (detalle_nota_venta_id)
+        REFERENCES detalles_nota_venta (id) ON DELETE SET NULL,
+    CONSTRAINT movimientos_inventario_detalle_nota_compra_id_foreign FOREIGN KEY (detalle_nota_compra_id)
+        REFERENCES detalles_nota_compra (id) ON DELETE SET NULL,
+    CONSTRAINT movimientos_inventario_usuario_id_foreign FOREIGN KEY (usuario_id)
+        REFERENCES usuarios (id) ON DELETE SET NULL,
+    CONSTRAINT chk_movimientos_tipo CHECK (tipo IN ('entrada', 'salida', 'ajuste'))
 );
 
 COMMIT;

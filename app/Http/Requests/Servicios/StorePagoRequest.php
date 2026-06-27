@@ -20,6 +20,9 @@ class StorePagoRequest extends FormRequest
     {
         return array_merge($this->reglasOrigenPago(), [
             'num_cuotas' => 'nullable|integer|min:1|max:36',
+            'cuotas_plan' => 'nullable|array|min:1|max:36',
+            'cuotas_plan.*.monto' => 'required_with:cuotas_plan|numeric|min:0.01',
+            'cuotas_plan.*.fecha' => 'required_with:cuotas_plan|date',
         ]);
     }
 

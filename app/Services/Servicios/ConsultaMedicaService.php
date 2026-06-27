@@ -4,7 +4,10 @@ namespace App\Services\Servicios;
 
 use App\Enums\EstadoConsultaEnum;
 use App\Models\Servicios\ConsultaMedica;
+use App\Models\Servicios\Pago;
 use App\Repositories\Servicios\ConsultaMedicaRepository;
+use App\Support\PoliticaReserva;
+use App\Support\RegistroClinica;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use InvalidArgumentException;
@@ -66,9 +69,18 @@ class ConsultaMedicaService
             }
         }
 
+        if ($destino === EstadoConsultaEnum::EN_ESPERA && $consulta->fecha && ! $emergencia) {
+            $fechaReserva = Carbon::parse($consulta->fecha)->toDateString();
+            if ($fechaReserva !== Carbon::today()->toDateString()) {
+                throw new InvalidArgumentException('El check-in solo puede realizarse el día de la cita.');
+            }
+        }
+
         if ($destino === EstadoConsultaEnum::NO_ASISTIO && $consulta->fecha) {
-            if (! $this->reservaYaVencio($consulta)) {
-                throw new InvalidArgumentException('Solo puede marcar «No asistió» cuando ya pasó la fecha y hora de la cita.');
+            if (! PoliticaReserva::puedeMarcarNoAsistio($consulta)) {
+                throw new InvalidArgumentException(
+                    'Solo puede marcar «No asistió» cuando terminó el día de la cita sin que el paciente haya llegado.'
+                );
             }
         }
 
@@ -77,6 +89,10 @@ class ConsultaMedicaService
                 'No se puede cambiar de «'.(EstadoConsultaEnum::labels()[$actual->value] ?? $actual->value)
                 .'» a «'.EstadoConsultaEnum::labels()[$destino->value].'».'
             );
+        }
+
+        if ($destino === EstadoConsultaEnum::NO_ASISTIO) {
+            $this->marcarAnticipoPerdido($consulta);
         }
 
         $datos = ['estado' => $destino->value];
@@ -99,11 +115,12 @@ class ConsultaMedicaService
             ->where('estado', EstadoConsultaEnum::RESERVADA->value)
             ->whereNotNull('fecha')
             ->each(function (ConsultaMedica $consulta) use (&$actualizadas) {
-                if (! $this->reservaYaVencio($consulta)) {
+                if (! PoliticaReserva::diaCitaTerminado($consulta)) {
                     return;
                 }
 
                 $consulta->update(['estado' => EstadoConsultaEnum::NO_ASISTIO->value]);
+                $this->marcarAnticipoPerdido($consulta);
                 $actualizadas++;
             });
 
@@ -112,19 +129,143 @@ class ConsultaMedicaService
 
     private function reservaYaVencio(ConsultaMedica $consulta): bool
     {
-        if (! $consulta->fecha) {
-            return false;
+        return PoliticaReserva::horaCitaPasada($consulta);
+    }
+
+    public function registrarLlegada(int $id, bool $emergencia = false): ConsultaMedica
+    {
+        $consulta = ConsultaMedica::with(['mascota.propietario'])->findOrFail($id);
+
+        if (RegistroClinica::requiereRegistroEnLlegada($consulta)) {
+            throw new InvalidArgumentException(
+                'Debe completar el registro del propietario y la mascota antes del check-in.'
+            );
         }
 
-        $fecha = Carbon::parse($consulta->fecha)->format('Y-m-d');
+        return $this->cambiarEstado($id, EstadoConsultaEnum::EN_ESPERA->value, $emergencia);
+    }
 
-        $hora = $consulta->hora
-            ? Carbon::parse($consulta->hora)->format('H:i:s')
-            : '23:59:59';
+    public function reprogramar(int $id, string $fecha, string $hora): ConsultaMedica
+    {
+        $consulta = ConsultaMedica::with(['servicio', 'mascota.propietario', 'pagos'])->findOrFail($id);
 
-        $inicioReserva = Carbon::parse($fecha.' '.$hora);
+        if ($consulta->estado !== EstadoConsultaEnum::NO_ASISTIO->value) {
+            throw new InvalidArgumentException('Solo puede reprogramar citas marcadas como «No asistió».');
+        }
 
-        return $inicioReserva->isPast();
+        $motivo = trim((string) ($consulta->motivo ?? ''));
+        $nota = ' [Reprogramada el '.now()->format('d/m/Y H:i').' — sin anticipo previo]';
+
+        $this->repository->update([
+            'fecha' => $fecha,
+            'hora' => $hora,
+            'estado' => EstadoConsultaEnum::RESERVADA->value,
+            'motivo' => $motivo.$nota,
+        ], $id);
+
+        return $consulta->fresh(['servicio', 'mascota.propietario', 'veterinario', 'pagos']);
+    }
+
+    public function reprogramarPorTarde(int $id, string $fecha, string $hora): ConsultaMedica
+    {
+        $consulta = ConsultaMedica::with(['servicio', 'mascota.propietario', 'pagos'])->findOrFail($id);
+
+        if (! PoliticaReserva::puedeReprogramarTarde($consulta)) {
+            throw new InvalidArgumentException(
+                'Solo puede reprogramar por llegada tarde una vez, el mismo día de la cita y antes del cierre de la clínica.'
+            );
+        }
+
+        $motivo = trim((string) ($consulta->motivo ?? ''));
+        $nota = ' [Reprogramada por llegada tarde el '.now()->format('d/m/Y H:i').' — anticipo conservado]';
+
+        $this->repository->update([
+            'fecha' => $fecha,
+            'hora' => $hora,
+            'estado' => EstadoConsultaEnum::RESERVADA->value,
+            'reprogramada_tarde' => true,
+            'motivo' => $motivo.$nota,
+        ], $id);
+
+        return $consulta->fresh(['servicio', 'mascota.propietario', 'veterinario', 'pagos']);
+    }
+
+    public function getAgendaDia(?string $fecha = null): array
+    {
+        $this->marcarReservasVencidasComoNoAsistio();
+
+        $fecha = $fecha ?? Carbon::today()->toDateString();
+        $consultas = $this->addPetDetailsToConsultations($this->repository->getByFecha($fecha));
+
+        $columnas = [
+            EstadoConsultaEnum::RESERVADA->value => [],
+            EstadoConsultaEnum::EN_ESPERA->value => [],
+            EstadoConsultaEnum::EN_ATENCION->value => [],
+            EstadoConsultaEnum::COMPLETADA->value => [],
+            EstadoConsultaEnum::NO_ASISTIO->value => [],
+        ];
+
+        foreach ($consultas as $consulta) {
+            $estado = $consulta->estado;
+            if (array_key_exists($estado, $columnas)) {
+                $columnas[$estado][] = $consulta;
+            }
+        }
+
+        return [
+            'fecha' => $fecha,
+            'columnas' => $columnas,
+            'total' => $consultas->count(),
+        ];
+    }
+
+    public function getRecordatorios(?string $fecha = null)
+    {
+        $fecha = $fecha ?? Carbon::tomorrow()->toDateString();
+
+        return $this->addPetDetailsToConsultations(
+            $this->repository->getByFecha($fecha, [EstadoConsultaEnum::RESERVADA->value])
+        );
+    }
+
+    public function iniciarAtencion(int $mascotaId, ?int $servicioId = null, ?string $motivo = null): ConsultaMedica
+    {
+        $servicio = $servicioId ? \App\Models\Servicios\Servicio::find($servicioId) : null;
+
+        $consulta = $this->repository->create([
+            'mascota_id' => $mascotaId,
+            'motivo' => $motivo ?: 'Consulta en atención',
+            'estado' => EstadoConsultaEnum::EN_ATENCION->value,
+            'fecha' => Carbon::today()->toDateString(),
+            'hora' => now()->format('H:i:s'),
+            'usuario_id' => Auth::id(),
+            'servicio_id' => $servicio?->id,
+            'costo_consulta' => $servicio?->precio ?? 0,
+        ]);
+
+        return $consulta->fresh(['servicio', 'mascota.propietario', 'veterinario', 'pagos']);
+    }
+
+    public function finalizarAtencion(int $id, array $datosClinicos): ConsultaMedica
+    {
+        $consulta = ConsultaMedica::findOrFail($id);
+        $datosClinicos['estado'] = EstadoConsultaEnum::COMPLETADA->value;
+
+        if (empty($datosClinicos['fecha'])) {
+            $datosClinicos['fecha'] = $consulta->fecha ?? Carbon::today()->toDateString();
+        }
+
+        $this->repository->update($datosClinicos, $id);
+
+        return $consulta->fresh(['servicio', 'mascota.propietario', 'veterinario', 'pagos']);
+    }
+
+    private function marcarAnticipoPerdido(ConsultaMedica $consulta): void
+    {
+        Pago::query()
+            ->where('consulta_id', $consulta->id)
+            ->where('concepto_pago', 'anticipo')
+            ->update(['concepto_pago' => 'anticipo_perdido']);
     }
 
     /**
@@ -139,6 +280,12 @@ class ConsultaMedicaService
             $mc->pet_owner = $propietario
                 ? trim(($propietario->nombre ?? $propietario->first_name ?? '').' '.($propietario->apellido ?? $propietario->last_name ?? ''))
                 : 'N/A';
+            $mc->requiere_registro_llegada = $mc->estado === EstadoConsultaEnum::RESERVADA->value
+                && RegistroClinica::requiereRegistroEnLlegada($mc);
+            $mc->puede_reprogramar_tarde = PoliticaReserva::puedeReprogramarTarde($mc);
+            $mc->puede_marcar_no_asistio = PoliticaReserva::puedeMarcarNoAsistio($mc);
+            $mc->saldo_pendiente = \App\Support\ConsultaSaldo::saldoPendiente($mc);
+            $mc->monto_pagado = \App\Support\ConsultaSaldo::montoPagado($mc);
         }
         return $consultations;
     }

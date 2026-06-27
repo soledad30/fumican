@@ -12,6 +12,7 @@ import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
 import { usePermisos } from "@/Composables/usePermisos";
+import { usePlanCredito } from "@/Composables/usePlanCredito";
 
 const route = inject("route");
 const { puede } = usePermisos();
@@ -74,6 +75,7 @@ const origenSeleccionado = computed(() => {
 
 const resumenCreditoParcial = computed(() => {
     if (form.value.tipo_pago !== "credito" || !origenSeleccionado.value || selected.value) return null;
+    if (pagosPlan.value.length) return null;
     const saldo = saldoOrigen(origenSeleccionado.value);
     const monto = Number(form.value.monto) || 0;
     const cuotas = Number(form.value.num_cuotas) || 1;
@@ -86,6 +88,18 @@ const resumenCreditoParcial = computed(() => {
         porCuota: cuotas > 1 ? Math.round((restante / cuotas) * 100) / 100 : restante,
     };
 });
+
+const {
+    numPagos,
+    pagosPlan,
+    initPlan,
+    rebuildPlan,
+    sumaPlan,
+    diferencia,
+    planValido,
+    maxFechaVencimiento,
+    payloadCuotasPlan,
+} = usePlanCredito(() => saldoOrigen(origenSeleccionado.value));
 
 watch(currentPage, (page) => {
     router.get(route("pagos.search"), { ...filters.value, page }, { preserveState: true });
@@ -223,6 +237,7 @@ function openCreate() {
         nota_venta_id: "", consulta_id: "", monto: 0, tipo_pago: "contado", metodo_pago: "efectivo",
         id_transaccion_externa: "", fecha_pago: new Date().toISOString().slice(0, 16), num_cuotas: 3,
     };
+    pagosPlan.value = [];
     isModal.value = true;
 }
 
@@ -240,6 +255,7 @@ function openCreatePendiente(cuenta) {
         fecha_pago: new Date().toISOString().slice(0, 16),
         num_cuotas: 3,
     };
+    pagosPlan.value = [];
     isModal.value = true;
 }
 
@@ -292,6 +308,18 @@ watch(() => form.value.metodo_pago, (metodo) => {
 watch(() => form.value.tipo_pago, (tipo) => {
     if (!selected.value && tipo === "contado" && !form.value.fecha_pago) {
         form.value.fecha_pago = new Date().toISOString().slice(0, 16);
+    }
+    if (!selected.value && tipo === "credito" && origenSeleccionado.value) {
+        initPlan();
+    }
+    if (tipo === "contado") {
+        pagosPlan.value = [];
+    }
+});
+
+watch(origenSeleccionado, (origen) => {
+    if (!selected.value && form.value.tipo_pago === "credito" && origen) {
+        initPlan();
     }
 });
 
@@ -362,13 +390,26 @@ async function recargarDatosPagos() {
 }
 
 async function guardarPago() {
+    if (!selected.value && form.value.tipo_pago === "credito" && pagosPlan.value.length) {
+        if (!planValido.value) {
+            toast("danger", "La suma de los pagos debe igualar el saldo pendiente.");
+            return;
+        }
+    }
+
     loading.value = true;
     try {
         const url = selected.value
             ? route("pagos.update", { id: selected.value.id })
             : route("pagos.store");
         const method = selected.value ? axios.put : axios.post;
-        const { data } = await method(url, form.value);
+        const payload = { ...form.value };
+        if (!selected.value && form.value.tipo_pago === "credito" && pagosPlan.value.length) {
+            payload.cuotas_plan = payloadCuotasPlan();
+            payload.monto = Number(pagosPlan.value[0]?.monto) || payload.monto;
+            payload.fecha_pago = pagosPlan.value[0]?.fecha || payload.fecha_pago;
+        }
+        const { data } = await method(url, payload);
         toast("success", data.message);
         cerrarModalPago();
         await recargarDatosPagos();
@@ -597,7 +638,9 @@ async function submitCuota() {
                         · Pagado: Bs. {{ pagadoOrigen(origenSeleccionado).toFixed(2) }}
                         · <strong class="text-red-600">Saldo: Bs. {{ saldoOrigen(origenSeleccionado).toFixed(2) }}</strong>
                     </div>
-                    <div><InputLabel value="Monto a cobrar (Bs.)" /><TextInput v-model="form.monto" type="number" step="0.01" class="w-full" /></div>
+                    <div v-if="form.tipo_pago !== 'credito' || selected">
+                        <InputLabel value="Monto a cobrar (Bs.)" /><TextInput v-model="form.monto" type="number" step="0.01" class="w-full" />
+                    </div>
                     <div>
                         <InputLabel value="Tipo de pago" />
                         <select v-model="form.tipo_pago" class="w-full border rounded px-2 py-2 dark:bg-gray-700 dark:border-gray-600">
@@ -623,7 +666,67 @@ async function submitCuota() {
                             Al guardar se generará el QR por Bs. {{ Number(form.monto || 0).toFixed(2) }}.
                         </p>
                     </div>
-                    <div v-if="form.tipo_pago === 'credito'" class="col-span-2">
+                    <div v-if="form.tipo_pago === 'credito' && !selected" class="col-span-2 space-y-3">
+                        <div>
+                            <InputLabel value="Número de pagos (inicial + cuotas)" />
+                            <select
+                                v-model="numPagos"
+                                class="w-full border rounded px-2 py-2 dark:bg-gray-700 dark:border-gray-600"
+                                @change="rebuildPlan"
+                            >
+                                <option v-for="n in 11" :key="n + 1" :value="n + 1">{{ n + 1 }} pagos</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">
+                                El primer pago es el inicial (hoy). Los demás son cuotas con monto y fecha que usted defina (hasta 1 mes).
+                            </p>
+                        </div>
+                        <div class="border rounded-lg overflow-hidden">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-100 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left">Pago</th>
+                                        <th class="px-3 py-2 text-left">Monto (Bs.)</th>
+                                        <th class="px-3 py-2 text-left">Fecha</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(pago, idx) in pagosPlan" :key="idx" class="border-t dark:border-gray-600">
+                                        <td class="px-3 py-2 font-medium">{{ pago.etiqueta }}</td>
+                                        <td class="px-3 py-2">
+                                            <TextInput v-model="pago.monto" type="number" step="0.01" min="0.01" class="w-full" />
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <TextInput
+                                                v-if="pago.esInicial"
+                                                v-model="pago.fecha"
+                                                type="datetime-local"
+                                                class="w-full"
+                                            />
+                                            <TextInput
+                                                v-else
+                                                v-model="pago.fecha"
+                                                type="date"
+                                                class="w-full"
+                                                :max="maxFechaVencimiento()"
+                                            />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p
+                            class="text-sm rounded-lg p-3 border"
+                            :class="planValido ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'"
+                        >
+                            Suma: <strong>Bs. {{ sumaPlan.toFixed(2) }}</strong>
+                            · Saldo: <strong>Bs. {{ saldoOrigen(origenSeleccionado).toFixed(2) }}</strong>
+                            <span v-if="!planValido && diferencia !== 0">
+                                · Falta/sobra: <strong>Bs. {{ Math.abs(diferencia).toFixed(2) }}</strong>
+                            </span>
+                            <span v-else-if="planValido"> · Listo para guardar</span>
+                        </p>
+                    </div>
+                    <div v-else-if="form.tipo_pago === 'credito'" class="col-span-2">
                         <InputLabel value="Número de cuotas (del saldo restante)" />
                         <TextInput v-model="form.num_cuotas" type="number" min="2" max="36" class="w-full" />
                         <p v-if="resumenCreditoParcial" class="mt-2 text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-lg p-3">

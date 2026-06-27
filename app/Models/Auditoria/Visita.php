@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Visita extends Model
 {
-    protected $connection = 'auditoria';
-
     protected $table = 'visitas';
 
     public $timestamps = false;

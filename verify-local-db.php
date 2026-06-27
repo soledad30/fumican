@@ -32,11 +32,13 @@ $checks['login_demo'] = $demo && Hash::check('12345678', $demo->password);
 $checks['rol_propietario'] = $demo?->rol?->nombre === 'propietario';
 
 try {
-    $checks['auditoria_menus'] = DB::connection('auditoria')->table('menus')->count() >= 0;
-    $checks['auditoria_bitacora'] = DB::connection('auditoria')->getSchemaBuilder()->hasTable('bitacora');
+    $checks['bitacora'] = DB::getSchemaBuilder()->hasTable('bitacora');
+    $checks['cuotas_credito'] = DB::getSchemaBuilder()->hasTable('cuotas_credito');
+    $checks['movimientos_inventario'] = DB::getSchemaBuilder()->hasTable('movimientos_inventario');
 } catch (Throwable $e) {
-    $checks['auditoria_menus'] = false;
-    $checks['auditoria_bitacora'] = false;
+    $checks['bitacora'] = false;
+    $checks['cuotas_credito'] = false;
+    $checks['movimientos_inventario'] = false;
 }
 
 $allOk = ! in_array(false, $checks, true);

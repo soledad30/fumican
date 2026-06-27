@@ -9,7 +9,7 @@ use App\Models\Ventas\NotaVenta;
 use App\Models\Servicios\ConsultaMedica;
 use App\Http\Requests\Servicios\StorePagoRequest;
 use App\Http\Requests\Servicios\UpdatePagoRequest;
-use App\Services\Auditoria\PlanPagoService;
+use App\Services\Auditoria\CuotaCreditoService;
 use App\Services\Servicios\PagoService;
 use App\Support\ConsultaSaldo;
 use App\Support\NotaVentaSaldo;
@@ -22,7 +22,7 @@ class PagoController extends Controller
 {
     public function __construct(
         protected PagoService $pagoService,
-        protected PlanPagoService $planPagoService
+        protected CuotaCreditoService $cuotaCreditoService
     ) {}
 
     protected function datosPagosIndex(array $filters = []): array
@@ -65,7 +65,8 @@ class PagoController extends Controller
                         'total' => (float) ($c->costo_consulta ?? 0),
                         'pagado' => ConsultaSaldo::montoPagado($c),
                         'saldo' => ConsultaSaldo::saldoPendiente($c),
-                        'fecha' => $c->fecha,
+                        'fecha' => $c->fecha ?? $c->creado_en,
+                        'creado_en' => $c->creado_en,
                     ])
             )
             ->merge(
@@ -81,9 +82,10 @@ class PagoController extends Controller
                         'pagado' => NotaVentaSaldo::montoPagado($n),
                         'saldo' => NotaVentaSaldo::saldoPendiente($n),
                         'fecha' => $n->fecha_venta,
+                        'creado_en' => $n->creado_en ?? $n->fecha_venta,
                     ])
             )
-            ->sortByDesc('saldo')
+            ->sortByDesc(fn ($c) => $c['creado_en'] ?? $c['fecha'])
             ->values();
 
         $estadisticas = $this->pagoService->getEstadisticas();
@@ -100,7 +102,7 @@ class PagoController extends Controller
             'notasVenta' => $notasVenta,
             'consultas' => $consultas,
             'cuentasPendientes' => $cuentasPendientes,
-            'planesPago' => $this->planPagoService->getPlanesActivos(),
+            'planesPago' => $this->cuotaCreditoService->getPlanesActivos(),
             'filters' => $filters,
         ];
     }
@@ -146,7 +148,7 @@ class PagoController extends Controller
             'metodo_pago.required' => 'Seleccione el método de pago.',
         ]);
 
-        $cuota = $this->planPagoService->registrarPagoCuota($cuotaId, $data);
+        $cuota = $this->cuotaCreditoService->registrarPagoCuota($cuotaId, $data);
 
         return response()->json(['message' => 'Cuota registrada correctamente.', 'cuota' => $cuota]);
     }

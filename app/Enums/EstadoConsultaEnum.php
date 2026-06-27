@@ -5,6 +5,7 @@ namespace App\Enums;
 enum EstadoConsultaEnum: string
 {
     case RESERVADA = 'reservada';
+    case EN_ESPERA = 'en_espera';
     case EN_ATENCION = 'en_atencion';
     case COMPLETADA = 'completada';
     case CANCELADA = 'cancelada';
@@ -19,6 +20,7 @@ enum EstadoConsultaEnum: string
     {
         return [
             self::RESERVADA->value => 'Reservada',
+            self::EN_ESPERA->value => 'En espera',
             self::EN_ATENCION->value => 'En atención',
             self::COMPLETADA->value => 'Completada',
             self::CANCELADA->value => 'Cancelada',
@@ -30,11 +32,13 @@ enum EstadoConsultaEnum: string
     {
         return match ($this) {
             self::RESERVADA => [
+                self::EN_ESPERA,
                 self::EN_ATENCION,
                 self::COMPLETADA,
                 self::CANCELADA,
                 self::NO_ASISTIO,
             ],
+            self::EN_ESPERA => [self::EN_ATENCION, self::CANCELADA],
             self::EN_ATENCION => [self::COMPLETADA, self::CANCELADA],
             default => [],
         };

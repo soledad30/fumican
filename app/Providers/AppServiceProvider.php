@@ -8,8 +8,8 @@ use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
 use App\Support\InstalarEsquemaSql;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,20 +23,22 @@ class AppServiceProvider extends ServiceProvider
     {
         Route::bind('user', fn (string $value) => Usuario::findOrFail($value));
 
-        $this->asegurarBaseAuditoria();
+        if (config('database.default') === 'pgsql') {
+            $conn = config('database.default');
+            $faltan = ! Schema::connection($conn)->hasTable('bitacora')
+                || ! Schema::connection($conn)->hasTable('cuotas_credito')
+                || ! Schema::connection($conn)->hasTable('movimientos_inventario');
+
+            if ($faltan) {
+                InstalarEsquemaSql::aplicar($conn, 'clinica_veterinaria_auditoria_pg.sql');
+            }
+
+            if (! Schema::connection($conn)->hasColumn('movimientos_inventario', 'detalle_nota_venta_id')) {
+                InstalarEsquemaSql::aplicar($conn, 'clinica_veterinaria_relaciones.sql');
+            }
+        }
 
         Event::listen(Login::class, [RegistrarEventosAutenticacion::class, 'handleLogin']);
         Event::listen(Failed::class, [RegistrarEventosAutenticacion::class, 'handleFailed']);
-    }
-
-    private function asegurarBaseAuditoria(): void
-    {
-        $dbPath = database_path('auditoria.sqlite');
-
-        if (! File::exists($dbPath)) {
-            File::put($dbPath, '');
-        }
-
-        InstalarEsquemaSql::aplicarSiFalta('auditoria', 'auditoria.sql', 'bitacora');
     }
 }

@@ -17,6 +17,10 @@ class ConsultaMedica extends Model
 
     protected $table = 'consultas_medicas';
 
+    protected $casts = [
+        'reprogramada_tarde' => 'boolean',
+    ];
+
     protected $fillable = [
         'fecha',
         'hora',
@@ -27,6 +31,7 @@ class ConsultaMedica extends Model
         'mascota_id',
         'usuario_id',
         'servicio_id',
+        'reprogramada_tarde',
     ];
 
     protected $appends = [

@@ -46,9 +46,30 @@ class StoreConsultaMedicaRequest extends FormRequest
                 'service_id' => 'nullable|exists:servicios,id',
                 'servicio_id' => 'nullable|exists:servicios,id',
                 'estado' => ['nullable', Rule::in(EstadoConsultaEnum::values())],
+                'fecha' => 'nullable|date',
+                'hora' => 'nullable|string|max:10',
                 'appetite' => 'nullable|string|max:120',
                 'hydratation' => 'nullable|string|max:120',
                 'mucosa' => 'nullable|string|max:120',
+            ];
+        }
+
+        $estado = $this->input('estado');
+        if (in_array($estado, [
+            EstadoConsultaEnum::RESERVADA->value,
+            EstadoConsultaEnum::EN_ESPERA->value,
+        ], true)) {
+            return [
+                'reason' => 'required|string|max:255',
+                'pet_id' => 'required|exists:mascotas,id',
+                'fecha' => 'required|date',
+                'hora' => 'required|string|max:10',
+                'estado' => ['required', Rule::in(EstadoConsultaEnum::values())],
+                'service_id' => 'nullable|exists:servicios,id',
+                'servicio_id' => 'nullable|exists:servicios,id',
+                'consultation_fee' => 'nullable|numeric|min:0',
+                'veterinarian_id' => 'nullable|exists:usuarios,id',
+                'modo_consulta' => 'nullable|in:inicial,seguimiento',
             ];
         }
 
@@ -80,6 +101,8 @@ class StoreConsultaMedicaRequest extends FormRequest
             'service_id' => 'nullable|exists:servicios,id',
             'servicio_id' => 'nullable|exists:servicios,id',
             'estado' => ['nullable', Rule::in(EstadoConsultaEnum::values())],
+            'fecha' => 'nullable|date',
+            'hora' => 'nullable|string|max:10',
             'modo_consulta' => 'nullable|in:inicial,seguimiento',
         ];
     }

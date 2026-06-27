@@ -2,7 +2,7 @@
 
 namespace App\Support;
 
-use App\Models\Auditoria\CuotaPago;
+use App\Models\Auditoria\CuotaCredito;
 use App\Models\Servicios\Pago;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -12,6 +12,10 @@ class SaldoCobrado
     {
         return (float) (clone $query)
             ->where(function (Builder $q) {
+                $q->whereNull('concepto_pago')
+                    ->orWhereNotIn('concepto_pago', ['anticipo_perdido']);
+            })
+            ->where(function (Builder $q) {
                 $q->where('tipo_pago', 'contado')
                     ->orWhereNotNull('fecha_pago');
             })
@@ -20,9 +24,9 @@ class SaldoCobrado
 
     public static function sumCuotasPagadasPorNota(int $notaVentaId): float
     {
-        return (float) CuotaPago::query()
+        return (float) CuotaCredito::query()
             ->where('estado', 'pagada')
-            ->whereHas('plan', fn (Builder $p) => $p->where('nota_venta_id', $notaVentaId))
+            ->whereHas('pago', fn ($q) => $q->where('nota_venta_id', $notaVentaId))
             ->sum('monto');
     }
 
@@ -34,9 +38,9 @@ class SaldoCobrado
             return 0.0;
         }
 
-        return (float) CuotaPago::query()
+        return (float) CuotaCredito::query()
             ->where('estado', 'pagada')
-            ->whereHas('plan', fn (Builder $p) => $p->whereIn('pago_id', $pagoIds))
+            ->whereIn('pago_id', $pagoIds)
             ->sum('monto');
     }
 }

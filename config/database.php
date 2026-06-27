@@ -97,13 +97,6 @@ return [
             'sslmode' => env('DB_SSLMODE', 'disable'),
         ],
 
-        'auditoria' => [
-            'driver' => 'sqlite',
-            'database' => env('AUDITORIA_DB_DATABASE', database_path('auditoria.sqlite')),
-            'prefix' => '',
-            'foreign_key_constraints' => true,
-        ],
-
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

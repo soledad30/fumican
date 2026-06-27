@@ -25,6 +25,7 @@ const tipoColor = {
 
 const estadoBadge = {
     reservada: "yellow",
+    en_espera: "indigo",
     en_atencion: "blue",
     completada: "green",
     cancelada: "red",

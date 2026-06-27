@@ -61,9 +61,12 @@ class MenuConfig
             [
                 'name' => 'Consultas',
                 'icon' => 'fa-solid fa-calendar-days',
-                'link' => '/servicios/consultas-medicas',
+                'link' => '/servicios/consultas-medicas/agenda',
                 'permission' => 'listar_consultas',
-                'children' => [],
+                'children' => [
+                    ['name' => 'Agenda de hoy', 'link' => '/servicios/consultas-medicas/agenda', 'permission' => 'listar_consultas'],
+                    ['name' => 'Todas las consultas', 'link' => '/servicios/consultas-medicas', 'permission' => 'listar_consultas'],
+                ],
             ],
             [
                 'name' => 'Historial',

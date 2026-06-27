@@ -17,9 +17,10 @@ import {
     FwbTextarea,
     FwbBadge,
 } from "flowbite-vue";
-import { computed, ref, watch, inject } from "vue";
+import { computed, ref, watch, inject, onMounted, onUnmounted } from "vue";
 import axios from "axios";
 import { usePermisos } from "@/Composables/usePermisos";
+import { usePlanCredito } from "@/Composables/usePlanCredito";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
 
 const route = inject("route");
@@ -41,6 +42,8 @@ const props = defineProps({
     metodosPago: { type: Object, default: () => ({}) },
     tiposPago: { type: Object, default: () => ({}) },
     filters: Object,
+    atenderConsulta: { type: Object, default: null },
+    cobrarConsulta: { type: Object, default: null },
 });
 
 const currentPage = ref(props.medicalConsultations.current_page || 1);
@@ -57,6 +60,9 @@ const filters = ref({
     date_from: props.filters.date_from || "",
     date_to: props.filters.date_to || "",
     estado: props.filters.estado || "",
+    propietario: props.filters.propietario || "",
+    mascota: props.filters.mascota || "",
+    servicio_id: props.filters.servicio_id || "",
 });
 
 function applyFilters() {
@@ -67,7 +73,10 @@ function applyFilters() {
 }
 
 function resetFilters() {
-    filters.value = { search_term: "", date_from: "", date_to: "", estado: "" };
+    filters.value = {
+        search_term: "", date_from: "", date_to: "", estado: "",
+        propietario: "", mascota: "", servicio_id: "",
+    };
     router.get(route("consultas-medicas.index"));
 }
 
@@ -81,6 +90,41 @@ const toastType = ref("success");
 const isCreateOrEditModal = ref(false);
 const isDeleteModal = ref(false);
 const isEmergenciaModal = ref(false);
+const isRegistroLlegadaModal = ref(false);
+const isReprogramarModal = ref(false);
+const reprogramarModo = ref("no_asistio");
+const reprogramarConsulta = ref(null);
+const reprogramarForm = ref({ fecha: "", hora: "09:00" });
+const reprogramarErrors = ref({});
+const horariosDisponibles = ["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00"];
+const registroLlegadaEmergencia = ref(false);
+const registroConsulta = ref(null);
+const registroForm = ref({
+    first_name: "",
+    last_name: "",
+    ci: "",
+    phone_number: "",
+    email: "",
+    gender: "0",
+    address: "",
+    pet_name: "",
+    pet_color: "",
+    pet_gender: "macho",
+    pet_age: "",
+    pet_weight: "",
+});
+const registroFormErrors = ref({});
+const registroAllSpecies = ref([]);
+const registroBreedsForSpecie = ref([]);
+const registroSpecieMode = ref("list");
+const registroBreedMode = ref("list");
+const registroCustomSpecie = ref("");
+const registroCustomBreed = ref("");
+const registroSpecieSelect = ref("");
+const registroBreedSelect = ref("");
+const registroBreedId = ref("");
+const isFetchingRegistroSpecies = ref(false);
+const isFetchingRegistroBreeds = ref(false);
 const isPagoModal = ref(false);
 const pendienteCambioEstado = ref(null);
 const pagoConsulta = ref(null);
@@ -91,6 +135,18 @@ const pagoForm = ref({
     id_transaccion_externa: "",
     num_cuotas: 2,
 });
+
+const {
+    numPagos,
+    pagosPlan,
+    initPlan,
+    rebuildPlan,
+    sumaPlan,
+    diferencia,
+    planValido,
+    maxFechaVencimiento,
+    payloadCuotasPlan,
+} = usePlanCredito(() => saldoConsulta(pagoConsulta.value));
 const pagoQrImage = ref("");
 const pagoQrTransaccion = ref("");
 const pagoQrVerificando = ref(false);
@@ -108,6 +164,23 @@ const modoConsulta = ref("inicial");
 const esModoSeguimiento = computed(
     () => modalMode.value === "create" && modoConsulta.value === "seguimiento"
 );
+
+const esEstadoAgenda = computed(() =>
+    ["reservada", "en_espera"].includes(form.value.estado)
+);
+
+const hintCrearConsulta = computed(() => {
+    if (form.value.estado === "reservada") {
+        return "Indique fecha y hora de la cita. Aparecerá en la Agenda como «Reservada».";
+    }
+    if (form.value.estado === "en_espera") {
+        return "El paciente quedará en sala de espera en la Agenda.";
+    }
+    if (form.value.estado === "en_atencion") {
+        return "Al seleccionar la mascota pasará a «En atención» en la Agenda. Al guardar la ficha quedará «Completada» si así lo indica el estado.";
+    }
+    return "Consulta clínica directa. Al guardar quedará en el estado seleccionado.";
+});
 
 // --- FORM ---
 const defaultFormState = {
@@ -135,7 +208,9 @@ const defaultFormState = {
     consultation_fee: "",
     treatment: "",
     service_id: "",
-    estado: "completada",
+    estado: "reservada",
+    fecha: "",
+    hora: "09:00",
 };
 const form = ref({ ...defaultFormState });
 const formErrors = ref({});
@@ -166,6 +241,7 @@ watch(() => form.value.service_id, (id) => {
 
 const estadoBadge = {
     reservada: "yellow",
+    en_espera: "indigo",
     en_atencion: "blue",
     completada: "green",
     cancelada: "red",
@@ -174,16 +250,51 @@ const estadoBadge = {
 
 const transicionesRapidas = {
     reservada: [
-        { estado: "en_atencion", label: "Atender", color: "blue" },
-        { estado: "completada", label: "Completar", color: "green" },
+        { estado: "en_espera", label: "Check-in", color: "green", accion: "check-in" },
+        { estado: "reprogramar_tarde", label: "Llegó tarde", color: "yellow", accion: "reprogramar-tarde" },
         { estado: "cancelada", label: "Cancelar", color: "red" },
         { estado: "no_asistio", label: "No asistió", color: "alternative", btnClass: "vet-btn-no-asistio" },
+    ],
+    en_espera: [
+        { estado: "en_atencion", label: "Atender", color: "blue" },
+        { estado: "cancelada", label: "Cancelar", color: "red" },
     ],
     en_atencion: [
         { estado: "completada", label: "Completar", color: "green" },
         { estado: "cancelada", label: "Cancelar", color: "red" },
     ],
 };
+
+const estadosAlCrear = ["reservada", "en_espera", "en_atencion", "completada"];
+
+const estadosAlEditar = computed(() => {
+    const actual = form.value.estado || "completada";
+    const destinos = (transicionesRapidas[actual] || [])
+        .map((t) => t.estado)
+        .filter((e) => e !== "reprogramar_tarde");
+    return [...new Set([actual, ...destinos])];
+});
+
+const estadosFormularioOpciones = computed(() => {
+    const keys = modalMode.value === "create" ? estadosAlCrear : estadosAlEditar.value;
+    return keys.map((key) => ({
+        key,
+        label: props.estadosConsulta[key] || key,
+    }));
+});
+
+const accionesEnTablaHint = computed(() => {
+    const hints = {
+        reservada:
+            "En la columna Acciones: Check-in, Cancelar y (si aplica) Llegó tarde o No asistió. También en Agenda del día.",
+        en_espera: "En Acciones: Atender y Cancelar.",
+        en_atencion: "En Acciones: Completar y Cancelar.",
+        completada: "Sin cambios de estado en la fila. Quedan Cobrar, ver, editar, PDF e historial.",
+        cancelada: "Estado final. Solo Cobrar (si hay saldo) e iconos de consulta.",
+        no_asistio: "Estado final. Reprogramar desde Acciones si corresponde.",
+    };
+    return hints[form.value.estado] || "";
+});
 
 function esFechaPasada(consultation) {
     return esReservaVencida(consultation);
@@ -207,7 +318,10 @@ function transicionesParaConsulta(consultation) {
     const lista = transicionesRapidas[consultation.estado] || [];
     return lista.filter((t) => {
         if (t.estado === "no_asistio") {
-            return esFechaPasada(consultation);
+            return consultation.puede_marcar_no_asistio;
+        }
+        if (t.accion === "reprogramar-tarde") {
+            return consultation.puede_reprogramar_tarde;
         }
         return true;
     });
@@ -236,6 +350,89 @@ function esFechaAtencionHoy(consultation) {
     return fechaReserva === fechaHoyYmd();
 }
 
+function requiereRegistroLlegada(consultation) {
+    return Boolean(consultation?.requiere_registro_llegada);
+}
+
+function solicitarAccionEstado(consultation, transicion) {
+    if (transicion.accion === "check-in") {
+        solicitarCheckIn(consultation);
+        return;
+    }
+    if (transicion.accion === "reprogramar-tarde") {
+        abrirReprogramarModal(consultation, "tarde");
+        return;
+    }
+    if (transicion.accion === "reprogramar") {
+        abrirReprogramarModal(consultation, "no_asistio");
+        return;
+    }
+    solicitarCambiarEstado(consultation, transicion.estado);
+}
+
+function solicitarCheckIn(consultation) {
+    if (requiereRegistroLlegada(consultation)) {
+        abrirRegistroLlegadaModal(consultation, false);
+        return;
+    }
+    if (!esFechaAtencionHoy(consultation)) {
+        pendienteCambioEstado.value = { consultation, nuevoEstado: "en_espera", accion: "check-in" };
+        isEmergenciaModal.value = true;
+        return;
+    }
+    ejecutarCheckIn(consultation, false);
+}
+
+async function ejecutarCheckIn(consultation, emergencia = false) {
+    const consultaId = resolveConsultaId(consultation);
+    if (!consultaId) return;
+    loading.value = true;
+    try {
+        const { data } = await axios.post(
+            route("consultas-medicas.check-in", { id: consultaId }),
+            { emergencia }
+        );
+        displayToast("success", data.message);
+        router.reload({ only: ["medicalConsultations"] });
+    } catch (e) {
+        displayToast("danger", e.response?.data?.message || "No se pudo registrar la llegada.");
+    } finally {
+        loading.value = false;
+    }
+}
+
+function abrirReprogramarModal(consultation, modo = "no_asistio") {
+    reprogramarConsulta.value = consultation;
+    reprogramarModo.value = modo;
+    reprogramarForm.value = { fecha: "", hora: horariosDisponibles[0] };
+    reprogramarErrors.value = {};
+    isReprogramarModal.value = true;
+}
+
+async function submitReprogramar() {
+    const consultaId = resolveConsultaId(reprogramarConsulta.value);
+    if (!consultaId) return;
+    loading.value = true;
+    reprogramarErrors.value = {};
+    const url = reprogramarModo.value === "tarde"
+        ? route("consultas-medicas.reprogramar-tarde", { id: consultaId })
+        : route("consultas-medicas.reprogramar", { id: consultaId });
+    try {
+        const { data } = await axios.post(url, reprogramarForm.value);
+        displayToast("success", data.message);
+        isReprogramarModal.value = false;
+        reprogramarConsulta.value = null;
+        router.reload({ only: ["medicalConsultations"] });
+    } catch (e) {
+        if (e.response?.status === 422) {
+            reprogramarErrors.value = e.response.data.errors || {};
+        }
+        displayToast("danger", e.response?.data?.message || "No se pudo reprogramar.");
+    } finally {
+        loading.value = false;
+    }
+}
+
 function solicitarCambiarEstado(consultation, nuevoEstado) {
     if (nuevoEstado === "en_atencion" && !esFechaAtencionHoy(consultation)) {
         pendienteCambioEstado.value = { consultation, nuevoEstado };
@@ -252,8 +449,16 @@ function cerrarEmergenciaModal() {
 
 function confirmarAtencionEmergencia() {
     if (!pendienteCambioEstado.value) return;
-    const { consultation, nuevoEstado } = pendienteCambioEstado.value;
+    const { consultation, nuevoEstado, accion } = pendienteCambioEstado.value;
     cerrarEmergenciaModal();
+    if (accion === "check-in") {
+        if (requiereRegistroLlegada(consultation)) {
+            abrirRegistroLlegadaModal(consultation, true);
+            return;
+        }
+        ejecutarCheckIn(consultation, true);
+        return;
+    }
     cambiarEstado(consultation, nuevoEstado, true);
 }
 
@@ -311,6 +516,168 @@ async function cambiarEstado(consultation, nuevoEstado, emergencia = false) {
     }
 }
 
+function resetRegistroLlegadaState() {
+    registroSpecieMode.value = "list";
+    registroBreedMode.value = "list";
+    registroCustomSpecie.value = "";
+    registroCustomBreed.value = "";
+    registroSpecieSelect.value = "";
+    registroBreedSelect.value = "";
+    registroBreedId.value = "";
+    registroBreedsForSpecie.value = [];
+    registroFormErrors.value = {};
+}
+
+async function loadRegistroSpecies() {
+    isFetchingRegistroSpecies.value = true;
+    try {
+        const { data } = await axios.get(route("especies.search"), { params: { search: "" } });
+        registroAllSpecies.value = data;
+    } catch {
+        registroAllSpecies.value = [];
+        displayToast("danger", "No se pudieron cargar las especies.");
+    } finally {
+        isFetchingRegistroSpecies.value = false;
+    }
+}
+
+async function fetchRegistroBreedsForSpecie(specieId) {
+    if (!specieId) {
+        registroBreedsForSpecie.value = [];
+        return;
+    }
+    isFetchingRegistroBreeds.value = true;
+    try {
+        const { data } = await axios.get(route("razas.search"), {
+            params: { search: "", specie_id: specieId },
+        });
+        registroBreedsForSpecie.value = data;
+    } catch {
+        registroBreedsForSpecie.value = [];
+    } finally {
+        isFetchingRegistroBreeds.value = false;
+    }
+}
+
+function onRegistroSpecieChange() {
+    if (registroSpecieSelect.value === "otro") {
+        registroSpecieMode.value = "otro";
+        registroBreedMode.value = "otro";
+        registroBreedSelect.value = "otro";
+        registroBreedId.value = "";
+        registroBreedsForSpecie.value = [];
+        return;
+    }
+    registroSpecieMode.value = "list";
+    registroBreedMode.value = "list";
+    registroBreedSelect.value = "";
+    registroBreedId.value = "";
+    registroCustomSpecie.value = "";
+    registroCustomBreed.value = "";
+    fetchRegistroBreedsForSpecie(registroSpecieSelect.value);
+}
+
+function onRegistroBreedChange() {
+    if (registroBreedSelect.value === "otro") {
+        registroBreedMode.value = "otro";
+        registroBreedId.value = "";
+        return;
+    }
+    registroBreedMode.value = "list";
+    registroBreedId.value = registroBreedSelect.value;
+    registroCustomBreed.value = "";
+}
+
+async function abrirRegistroLlegadaModal(consultation, emergencia = false) {
+    const cliente =
+        consultation?.mascota?.propietario ??
+        consultation?.mascota?.cliente ??
+        consultation?.mascota?.owner;
+    const mascota = consultation?.mascota;
+
+    resetRegistroLlegadaState();
+    registroConsulta.value = consultation;
+    registroLlegadaEmergencia.value = emergencia;
+    registroForm.value = {
+        first_name: cliente?.nombre || cliente?.first_name || "",
+        last_name: cliente?.apellido || cliente?.last_name || "",
+        ci: cliente?.ci && cliente.ci !== cliente?.telefono ? cliente.ci : "",
+        phone_number: cliente?.telefono || cliente?.phone_number || "",
+        email: cliente?.email || "",
+        gender: String(cliente?.gender ?? cliente?.genero ?? "0"),
+        address: cliente?.direccion || cliente?.address || "",
+        pet_name: mascota?.nombre || mascota?.name || consultation?.pet_name || "",
+        pet_color: mascota?.color || "",
+        pet_gender: mascota?.genero === "hembra" || mascota?.genero === "0" ? "hembra" : "macho",
+        pet_age: mascota?.age ?? "",
+        pet_weight: mascota?.peso ?? mascota?.weight ?? "",
+    };
+
+    if (mascota?.raza_id) {
+        registroBreedId.value = String(mascota.raza_id);
+        const raza = mascota.raza;
+        if (raza?.especie_id) {
+            registroSpecieSelect.value = String(raza.especie_id);
+            await fetchRegistroBreedsForSpecie(raza.especie_id);
+            registroBreedSelect.value = String(mascota.raza_id);
+        }
+    }
+
+    await loadRegistroSpecies();
+    isRegistroLlegadaModal.value = true;
+}
+
+function cerrarRegistroLlegadaModal() {
+    isRegistroLlegadaModal.value = false;
+    registroConsulta.value = null;
+    registroLlegadaEmergencia.value = false;
+    resetRegistroLlegadaState();
+}
+
+async function submitRegistroLlegada() {
+    const consultaId = resolveConsultaId(registroConsulta.value);
+    if (!consultaId) {
+        displayToast("danger", "No se pudo identificar la consulta.");
+        return;
+    }
+
+    registroFormErrors.value = {};
+    loading.value = true;
+
+    const payload = {
+        ...registroForm.value,
+        emergencia: registroLlegadaEmergencia.value,
+    };
+
+    if (registroBreedMode.value === "list" && registroBreedId.value) {
+        payload.breed_id = Number(registroBreedId.value);
+    } else if (registroSpecieMode.value === "otro" || registroBreedMode.value === "otro") {
+        payload.specie = registroCustomSpecie.value.trim();
+        payload.breed = registroCustomBreed.value.trim();
+    } else if (registroBreedSelect.value) {
+        payload.breed_id = Number(registroBreedSelect.value);
+    }
+
+    try {
+        const { data } = await axios.post(
+            route("consultas-medicas.registro-llegada", { id: consultaId }),
+            payload
+        );
+        displayToast("success", data.message);
+        cerrarRegistroLlegadaModal();
+        router.reload({ only: ["medicalConsultations"] });
+    } catch (e) {
+        if (e.response?.status === 422) {
+            registroFormErrors.value = e.response.data.errors || {};
+            displayToast("danger", e.response.data.message || "Revise los datos del formulario.");
+        } else {
+            displayToast("danger", e.response?.data?.message || "No se pudo completar el registro.");
+        }
+    } finally {
+        loading.value = false;
+    }
+}
+
 function saldoConsulta(consultation) {
     const saldo = consultation.saldo_pendiente ?? consultation.saldoPendiente;
     if (saldo != null) return Number(saldo);
@@ -363,8 +730,18 @@ function abrirPagoModal(consultation) {
         id_transaccion_externa: "",
         num_cuotas: 2,
     };
+    pagosPlan.value = [];
     isPagoModal.value = true;
 }
+
+watch(() => pagoForm.value.tipo_pago, (tipo) => {
+    if (tipo === "credito" && pagoConsulta.value) {
+        initPlan();
+    }
+    if (tipo === "contado") {
+        pagosPlan.value = [];
+    }
+});
 
 watch(() => pagoForm.value.metodo_pago, (metodo) => {
     if (metodo !== "qr") {
@@ -451,6 +828,10 @@ function iniciarVerificacionQrPago() {
 
 async function guardarPagoConsulta() {
     if (!pagoConsulta.value?.id) return;
+    if (pagoForm.value.tipo_pago === "credito" && pagosPlan.value.length && !planValido.value) {
+        displayToast("danger", "La suma de los pagos debe igualar el saldo pendiente.");
+        return;
+    }
     loading.value = true;
     try {
         const payload = {
@@ -461,7 +842,10 @@ async function guardarPagoConsulta() {
             concepto_pago: "saldo",
             id_transaccion_externa: pagoForm.value.id_transaccion_externa || null,
         };
-        if (pagoForm.value.tipo_pago === "credito") {
+        if (pagoForm.value.tipo_pago === "credito" && pagosPlan.value.length) {
+            payload.cuotas_plan = payloadCuotasPlan();
+            payload.monto = Number(pagosPlan.value[0]?.monto) || payload.monto;
+        } else if (pagoForm.value.tipo_pago === "credito") {
             payload.num_cuotas = pagoForm.value.num_cuotas;
         }
         const { data } = await axios.post(route("pagos.store"), payload);
@@ -522,6 +906,8 @@ function displayToast(type, message) {
 function prepareFormData(data) {
     const joinOrDefault = (val, def = "Normal") =>
         Array.isArray(val) ? (val.length ? val.join(", ") : def) : val || def;
+    const now = new Date();
+    const estado = data.estado || "completada";
 
     return {
         ...data,
@@ -530,13 +916,21 @@ function prepareFormData(data) {
         mucosa: joinOrDefault(data.mucosa),
         modo_consulta: esModoSeguimiento.value ? "seguimiento" : "inicial",
         veterinarian_id: page.props.auth.user.id,
+        estado,
+        fecha: data.fecha || fechaHoyYmd(),
+        hora: data.hora || now.toTimeString().slice(0, 8),
     };
 }
 
 function openCreateModal() {
     modalMode.value = "create";
     editingConsultaId.value = null;
-    form.value = { ...defaultFormState };
+    const hoy = fechaHoyYmd();
+    form.value = {
+        ...defaultFormState,
+        fecha: hoy,
+        hora: horariosDisponibles[0],
+    };
     selectedPet.value = null;
     resumenClinico.value = null;
     modoConsulta.value = "inicial";
@@ -640,7 +1034,40 @@ function handleSelectPet(pet) {
     search.value = "";
     petsList.value = [];
     cargarResumenClinico(pet.id);
+
+    if (modalMode.value === "create" && !editingConsultaId.value && form.value.estado === "en_atencion") {
+        iniciarAtencionMascota(pet.id);
+    }
 }
+
+async function iniciarAtencionMascota(petId) {
+    try {
+        const { data } = await axios.post(route("consultas-medicas.iniciar-atencion"), {
+            pet_id: petId,
+            service_id: form.value.service_id || null,
+            reason: form.value.reason || null,
+        });
+        editingConsultaId.value = data.consultation.id;
+        selectedConsultation.value = data.consultation;
+        modalMode.value = "edit";
+        form.value.id = data.consultation.id;
+        displayToast("success", data.message);
+    } catch (e) {
+        displayToast(
+            "danger",
+            e.response?.data?.message || "No se pudo iniciar la atención en agenda."
+        );
+    }
+}
+
+onMounted(() => {
+    if (props.atenderConsulta) {
+        openEditModal(props.atenderConsulta);
+    }
+    if (props.cobrarConsulta) {
+        abrirPagoModal(props.cobrarConsulta);
+    }
+});
 
 async function cargarResumenClinico(petId) {
     try {
@@ -732,6 +1159,10 @@ async function submitDelete() {
 
         <div class="flex justify-between my-6 items-center">
             <h2 class="text-2xl font-semibold vet-page-title">Consultas Médicas</h2>
+            <div class="flex gap-2">
+                <FwbA :href="route('consultas-medicas.agenda')" class="vet-btn-secondary inline-flex items-center px-4 py-2 rounded-lg text-sm">
+                    <i class="fa-solid fa-calendar-day mr-2"></i>Agenda del día
+                </FwbA>
             <div class="flex items-center space-x-2">
                 <FwbButton
                     tag="a"
@@ -749,69 +1180,66 @@ async function submitDelete() {
                     <i class="fa-solid fa-plus mr-2"></i> Agregar Consulta
                 </FwbButton>
             </div>
+            </div>
         </div>
 
-        <form
-            @submit.prevent="applyFilters"
-            class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6 vet-filter-panel"
-        >
-            <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700"
-                    >Buscar por Mascota, Dueño o Motivo</label
-                >
-                <TextInput
-                    v-model="filters.search_term"
-                    type="text"
-                    class="mt-1 block w-full"
-                    placeholder="Ej: Max, Smith, vacuna..."
-                />
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700"
-                    >Desde</label
-                >
-                <TextInput
-                    v-model="filters.date_from"
-                    type="date"
-                    class="mt-1 block w-full"
-                />
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700"
-                    >Hasta</label
-                >
-                <TextInput
-                    v-model="filters.date_to"
-                    type="date"
-                    class="mt-1 block w-full"
-                />
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Estado</label>
-                <select v-model="filters.estado" class="mt-1 block w-full border rounded px-2 py-2 dark:bg-gray-700 dark:border-gray-600">
-                    <option value="">Todos</option>
-                    <option v-for="(label, key) in estadosConsulta" :key="key" :value="key">{{ label }}</option>
-                </select>
-            </div>
-            <div class="flex items-end space-x-2 lg:col-span-2">
-                <FwbButton color="green" type="submit">Filtrar</FwbButton>
-                <FwbButton color="alternative" @click.prevent="resetFilters"
-                    >Limpiar</FwbButton
-                >
-            </div>
-        </form>
-
         <div class="vet-table-scroll">
-        <FwbTable class="vet-list-table">
+        <FwbTable class="vet-list-table vet-consultas-table">
             <FwbTableHead>
-                <FwbTableHeadCell class="w-12">ID</FwbTableHeadCell>
-                <FwbTableHeadCell class="whitespace-nowrap">Fecha</FwbTableHeadCell>
-                <FwbTableHeadCell>Propietario</FwbTableHeadCell>
-                <FwbTableHeadCell>Mascota</FwbTableHeadCell>
-                <FwbTableHeadCell>Servicio</FwbTableHeadCell>
-                <FwbTableHeadCell>Estado</FwbTableHeadCell>
-                <FwbTableHeadCell>Motivo</FwbTableHeadCell>
-                <FwbTableHeadCell class="vet-consultas-acciones">Acciones</FwbTableHeadCell>
+                    <FwbTableHeadCell class="w-12 vet-th-cell">
+                        <span class="vet-th-label">ID</span>
+                    </FwbTableHeadCell>
+                    <FwbTableHeadCell class="vet-th-cell vet-th-fecha">
+                        <div class="vet-th-filter-stack">
+                            <input v-model="filters.date_from" type="date" class="vet-th-filter" title="Desde" />
+                            <input v-model="filters.date_to" type="date" class="vet-th-filter" title="Hasta" />
+                        </div>
+                        <span class="vet-th-label">Fecha</span>
+                    </FwbTableHeadCell>
+                    <FwbTableHeadCell class="vet-th-cell">
+                        <input
+                            v-model="filters.propietario"
+                            type="text"
+                            class="vet-th-filter"
+                            placeholder="Filtrar..."
+                            @keyup.enter="applyFilters"
+                        />
+                        <span class="vet-th-label">Propietario</span>
+                    </FwbTableHeadCell>
+                    <FwbTableHeadCell class="vet-th-cell">
+                        <input
+                            v-model="filters.mascota"
+                            type="text"
+                            class="vet-th-filter"
+                            placeholder="Filtrar..."
+                            @keyup.enter="applyFilters"
+                        />
+                        <span class="vet-th-label">Mascota</span>
+                    </FwbTableHeadCell>
+                    <FwbTableHeadCell class="vet-th-cell">
+                        <select v-model="filters.servicio_id" class="vet-th-filter">
+                            <option value="">Todos</option>
+                            <option v-for="s in servicios" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+                        </select>
+                        <span class="vet-th-label">Servicio</span>
+                    </FwbTableHeadCell>
+                    <FwbTableHeadCell class="vet-th-cell">
+                        <select v-model="filters.estado" class="vet-th-filter">
+                            <option value="">Todos</option>
+                            <option v-for="(label, key) in estadosConsulta" :key="key" :value="key">{{ label }}</option>
+                        </select>
+                        <span class="vet-th-label">Estado</span>
+                    </FwbTableHeadCell>
+                    <FwbTableHeadCell class="vet-th-cell">
+                        <span class="vet-th-label">Motivo</span>
+                    </FwbTableHeadCell>
+                    <FwbTableHeadCell class="vet-th-cell vet-consultas-acciones">
+                        <div class="vet-th-filter-actions">
+                            <button type="button" class="vet-th-btn vet-th-btn--primary" @click="applyFilters">Filtrar</button>
+                            <button type="button" class="vet-th-btn" @click="resetFilters">Limpiar</button>
+                        </div>
+                        <span class="vet-th-label">Acciones</span>
+                    </FwbTableHeadCell>
             </FwbTableHead>
             <FwbTableBody>
                 <FwbTableRow v-if="isEmptyData">
@@ -826,8 +1254,8 @@ async function submitDelete() {
                     v-for="consultation in medicalConsultations.data"
                     :key="consultation.id"
                 >
-                    <FwbTableCell>{{ consultation.id }}</FwbTableCell>
-                    <FwbTableCell>
+                    <FwbTableCell class="w-12">{{ consultation.id }}</FwbTableCell>
+                    <FwbTableCell class="vet-th-fecha">
                         {{ consultation.fecha || consultation.created_at }}
                         <span v-if="consultation.hora" class="text-gray-500 text-xs"> {{ consultation.hora }}</span>
                     </FwbTableCell>
@@ -838,11 +1266,20 @@ async function submitDelete() {
                         <FwbBadge :type="estadoBadge[consultation.estado] || 'dark'">
                             {{ estadosConsulta[consultation.estado] || consultation.estado || "—" }}
                         </FwbBadge>
+                        <FwbBadge
+                            v-if="consultation.requiere_registro_llegada"
+                            type="warning"
+                            class="ml-1"
+                            title="Reserva web: completar registro al llegar"
+                        >
+                            Registro pendiente
+                        </FwbBadge>
                     </FwbTableCell>
                     <FwbTableCell class="max-w-xs truncate" :title="consultation.reason">{{
                         consultation.reason
                     }}</FwbTableCell>
                     <FwbTableCell class="vet-consultas-acciones">
+                        <div class="vet-acciones-wrap">
                         <template v-if="canEditMedCons && transicionesParaConsulta(consultation).length">
                             <FwbButton
                                 v-for="t in transicionesParaConsulta(consultation)"
@@ -851,7 +1288,7 @@ async function submitDelete() {
                                 size="xs"
                                 :color="t.color"
                                 :class="['mr-1', t.btnClass].filter(Boolean)"
-                                @click="solicitarCambiarEstado(consultation, t.estado)"
+                                @click="solicitarAccionEstado(consultation, t)"
                             >{{ t.label }}</FwbButton>
                         </template>
                         <FwbButton
@@ -894,6 +1331,7 @@ async function submitDelete() {
                             @edit="openEditModal(consultation)"
                             @delete="openDeleteModal(consultation)"
                         />
+                        </div>
                     </FwbTableCell>
                 </FwbTableRow>
             </FwbTableBody>
@@ -917,6 +1355,12 @@ async function submitDelete() {
                 </h3>
             </template>
             <template #body>
+                <p
+                    v-if="modalMode === 'create'"
+                    class="text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-4 py-3 mb-4"
+                >
+                    {{ hintCrearConsulta }}
+                </p>
                 <form class="space-y-6" @submit.prevent="submitForm">
                     <div class="mb-4 flex justify-between items-start">
                         <h3 class="text-xl font-semibold text-gray-700">
@@ -1301,8 +1745,48 @@ async function submitDelete() {
                                 v-model="form.estado"
                                 class="mt-1 w-full border rounded px-2 py-2 dark:bg-gray-700 dark:border-gray-600"
                             >
-                                <option v-for="(label, key) in estadosConsulta" :key="key" :value="key">{{ label }}</option>
+                                <option
+                                    v-for="opt in estadosFormularioOpciones"
+                                    :key="opt.key"
+                                    :value="opt.key"
+                                >
+                                    {{ opt.label }}
+                                </option>
                             </select>
+                            <p class="text-xs text-gray-500 mt-1">
+                                {{ hintCrearConsulta }}
+                            </p>
+                            <p
+                                v-if="accionesEnTablaHint"
+                                class="text-xs text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2 mt-2"
+                            >
+                                <strong>Después de guardar:</strong> {{ accionesEnTablaHint }}
+                            </p>
+                            <p
+                                v-if="modalMode === 'create'"
+                                class="text-xs text-gray-500 mt-1"
+                            >
+                                «Cancelada» y «No asistió» no se eligen al crear; aparecen como botones en la fila cuando la cita lo requiere.
+                            </p>
+                        </div>
+                        <div v-if="esEstadoAgenda">
+                            <InputLabel value="Fecha de la cita *" />
+                            <input
+                                v-model="form.fecha"
+                                type="date"
+                                class="mt-1 w-full border rounded px-2 py-2 dark:bg-gray-700 dark:border-gray-600"
+                            />
+                            <InputError :message="formErrors.fecha?.[0]" />
+                        </div>
+                        <div v-if="esEstadoAgenda">
+                            <InputLabel value="Hora de la cita *" />
+                            <select
+                                v-model="form.hora"
+                                class="mt-1 w-full border rounded px-2 py-2 dark:bg-gray-700 dark:border-gray-600"
+                            >
+                                <option v-for="h in horariosDisponibles" :key="h" :value="h">{{ h }}</option>
+                            </select>
+                            <InputError :message="formErrors.hora?.[0]" />
                         </div>
                         <div>
                             <InputLabel value="Servicio" />
@@ -1593,6 +2077,182 @@ async function submitDelete() {
             </template>
         </SearchModal>
 
+        <FwbModal v-if="isRegistroLlegadaModal" @close="cerrarRegistroLlegadaModal" size="2xl">
+            <template #header>
+                Registro en llegada — Consulta #{{ registroConsulta?.id }}
+            </template>
+            <template #body>
+                <p class="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 mb-5">
+                    Esta cita se reservó por la página web con datos mínimos.
+                    Complete el registro del propietario y la mascota para iniciar la atención.
+                </p>
+                <div class="space-y-6">
+                    <FormSectionTitle title="Propietario" />
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel value="Nombre *" />
+                            <TextInput v-model="registroForm.first_name" class="mt-1 w-full" />
+                            <InputError :message="registroFormErrors.first_name?.[0]" />
+                        </div>
+                        <div>
+                            <InputLabel value="Apellido *" />
+                            <TextInput v-model="registroForm.last_name" class="mt-1 w-full" />
+                            <InputError :message="registroFormErrors.last_name?.[0]" />
+                        </div>
+                        <div>
+                            <InputLabel value="CI *" />
+                            <TextInput v-model="registroForm.ci" class="mt-1 w-full" />
+                            <InputError :message="registroFormErrors.ci?.[0]" />
+                        </div>
+                        <div>
+                            <InputLabel value="Teléfono *" />
+                            <TextInput v-model="registroForm.phone_number" class="mt-1 w-full" />
+                            <InputError :message="registroFormErrors.phone_number?.[0]" />
+                        </div>
+                        <div>
+                            <InputLabel value="Correo" />
+                            <TextInput v-model="registroForm.email" type="email" class="mt-1 w-full" />
+                            <InputError :message="registroFormErrors.email?.[0]" />
+                        </div>
+                        <div>
+                            <InputLabel value="Género *" />
+                            <div class="flex gap-4 mt-2">
+                                <FwbRadio v-model="registroForm.gender" value="0" label="Masculino" />
+                                <FwbRadio v-model="registroForm.gender" value="1" label="Femenino" />
+                                <FwbRadio v-model="registroForm.gender" value="2" label="Otro" />
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <InputLabel value="Dirección" />
+                            <TextInput v-model="registroForm.address" class="mt-1 w-full" />
+                        </div>
+                    </div>
+
+                    <FormSectionTitle title="Mascota" />
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel value="Nombre *" />
+                            <TextInput v-model="registroForm.pet_name" class="mt-1 w-full" />
+                            <InputError :message="registroFormErrors.pet_name?.[0]" />
+                        </div>
+                        <div>
+                            <InputLabel value="Color *" />
+                            <TextInput v-model="registroForm.pet_color" class="mt-1 w-full" />
+                            <InputError :message="registroFormErrors.pet_color?.[0]" />
+                        </div>
+                        <div>
+                            <InputLabel value="Especie *" />
+                            <select
+                                v-model="registroSpecieSelect"
+                                class="mt-1 w-full border rounded px-2 py-2"
+                                @change="onRegistroSpecieChange"
+                            >
+                                <option value="">Seleccione especie</option>
+                                <option v-for="s in registroAllSpecies" :key="s.id" :value="s.id">
+                                    {{ s.name || s.nombre }}
+                                </option>
+                                <option value="otro">Otra especie...</option>
+                            </select>
+                            <TextInput
+                                v-if="registroSpecieMode === 'otro'"
+                                v-model="registroCustomSpecie"
+                                class="mt-2 w-full"
+                                placeholder="Nombre de la especie"
+                            />
+                        </div>
+                        <div>
+                            <InputLabel value="Raza *" />
+                            <select
+                                v-if="registroBreedMode === 'list' && registroSpecieMode !== 'otro'"
+                                v-model="registroBreedSelect"
+                                class="mt-1 w-full border rounded px-2 py-2"
+                                :disabled="!registroSpecieSelect || isFetchingRegistroBreeds"
+                                @change="onRegistroBreedChange"
+                            >
+                                <option value="">Seleccione raza</option>
+                                <option v-for="b in registroBreedsForSpecie" :key="b.id" :value="b.id">
+                                    {{ b.name || b.nombre }}
+                                </option>
+                                <option value="otro">Otra raza...</option>
+                            </select>
+                            <TextInput
+                                v-if="registroBreedMode === 'otro' || registroSpecieMode === 'otro'"
+                                v-model="registroCustomBreed"
+                                class="mt-1 w-full"
+                                placeholder="Nombre de la raza"
+                            />
+                        </div>
+                        <div>
+                            <InputLabel value="Sexo" />
+                            <select v-model="registroForm.pet_gender" class="mt-1 w-full border rounded px-2 py-2">
+                                <option value="macho">Macho</option>
+                                <option value="hembra">Hembra</option>
+                            </select>
+                        </div>
+                        <div>
+                            <InputLabel value="Edad (años)" />
+                            <TextInput v-model="registroForm.pet_age" type="number" min="0" class="mt-1 w-full" />
+                        </div>
+                        <div>
+                            <InputLabel value="Peso (kg)" />
+                            <TextInput v-model="registroForm.pet_weight" type="number" step="0.01" min="0" class="mt-1 w-full" />
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <template #footer>
+                <div class="flex justify-end gap-2 w-full">
+                    <FwbButton @click="cerrarRegistroLlegadaModal" color="alternative">
+                        Cancelar
+                    </FwbButton>
+                    <FwbButton @click="submitRegistroLlegada" color="blue" :loading="loading">
+                        Registrar y poner en espera
+                    </FwbButton>
+                </div>
+            </template>
+        </FwbModal>
+
+        <FwbModal v-if="isReprogramarModal" @close="isReprogramarModal = false">
+            <template #header>
+                {{ reprogramarModo === 'tarde' ? 'Reprogramar por llegada tarde' : 'Reprogramar cita' }}
+                #{{ reprogramarConsulta?.id }}
+            </template>
+            <template #body>
+                <p
+                    v-if="reprogramarModo === 'tarde'"
+                    class="text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-4 py-3 mb-4"
+                >
+                    Única reprogramación permitida por llegada tarde. El anticipo pagado se conserva.
+                </p>
+                <p
+                    v-else
+                    class="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 mb-4"
+                >
+                    El anticipo ya se perdió por no asistencia. La nueva cita requiere anticipo nuevamente.
+                </p>
+                <div class="space-y-4">
+                    <div>
+                        <InputLabel value="Nueva fecha *" />
+                        <input v-model="reprogramarForm.fecha" type="date" class="mt-1 w-full border rounded px-3 py-2" :min="fechaHoyYmd()" />
+                        <InputError :message="reprogramarErrors.fecha?.[0]" />
+                    </div>
+                    <div>
+                        <InputLabel value="Nuevo horario *" />
+                        <select v-model="reprogramarForm.hora" class="mt-1 w-full border rounded px-3 py-2">
+                            <option v-for="h in horariosDisponibles" :key="h" :value="h">{{ h }}</option>
+                        </select>
+                        <InputError :message="reprogramarErrors.hora?.[0]" />
+                    </div>
+                </div>
+            </template>
+            <template #footer>
+                <div class="flex justify-end gap-2">
+                    <FwbButton color="alternative" @click="isReprogramarModal = false">Cancelar</FwbButton>
+                    <FwbButton color="yellow" :loading="loading" @click="submitReprogramar">Reprogramar</FwbButton>
+                </div>
+            </template>
+        </FwbModal>
+
         <FwbModal v-if="isEmergenciaModal" @close="cerrarEmergenciaModal">
             <template #header>Fuera de fecha de atención</template>
             <template #body>
@@ -1638,7 +2298,7 @@ async function submitDelete() {
                     · <strong>Saldo: Bs. {{ saldoConsulta(pagoConsulta).toFixed(2) }}</strong>
                 </p>
                 <div class="space-y-4">
-                    <div>
+                    <div v-if="pagoForm.tipo_pago !== 'credito'">
                         <InputLabel value="Monto a cobrar (Bs.)" />
                         <TextInput v-model="pagoForm.monto" type="number" step="0.01" min="0.01" class="mt-1 w-full" />
                     </div>
@@ -1648,9 +2308,40 @@ async function submitDelete() {
                             <option v-for="(label, key) in tiposPago" :key="key" :value="key">{{ label }}</option>
                         </select>
                     </div>
-                    <div v-if="pagoForm.tipo_pago === 'credito'">
-                        <InputLabel value="Número de cuotas" />
-                        <TextInput v-model="pagoForm.num_cuotas" type="number" min="2" max="12" class="mt-1 w-full" />
+                    <div v-if="pagoForm.tipo_pago === 'credito'" class="space-y-3">
+                        <div>
+                            <InputLabel value="Número de pagos (inicial + cuotas)" />
+                            <select v-model="numPagos" class="mt-1 w-full border rounded px-2 py-2" @change="rebuildPlan">
+                                <option v-for="n in 11" :key="n + 1" :value="n + 1">{{ n + 1 }} pagos</option>
+                            </select>
+                        </div>
+                        <div class="border rounded-lg overflow-hidden text-sm">
+                            <table class="w-full">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left">Pago</th>
+                                        <th class="px-3 py-2 text-left">Monto</th>
+                                        <th class="px-3 py-2 text-left">Fecha</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(pago, idx) in pagosPlan" :key="idx" class="border-t">
+                                        <td class="px-3 py-2">{{ pago.etiqueta }}</td>
+                                        <td class="px-3 py-2">
+                                            <TextInput v-model="pago.monto" type="number" step="0.01" class="w-full" />
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <TextInput v-if="pago.esInicial" v-model="pago.fecha" type="datetime-local" class="w-full" />
+                                            <TextInput v-else v-model="pago.fecha" type="date" class="w-full" :max="maxFechaVencimiento()" />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-sm rounded-lg p-3 border" :class="planValido ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'">
+                            Suma: Bs. {{ sumaPlan.toFixed(2) }} · Saldo: Bs. {{ saldoConsulta(pagoConsulta).toFixed(2) }}
+                            <span v-if="!planValido"> · Ajuste: Bs. {{ Math.abs(diferencia).toFixed(2) }}</span>
+                        </p>
                     </div>
                     <div>
                         <InputLabel value="Método de pago" />
