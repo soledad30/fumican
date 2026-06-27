@@ -598,9 +598,7 @@ async function avanzarDesdePaso2SinCambios() {
         <div class="recepcion-clinica w-full min-w-0 pb-6">
             <div class="mb-4 sm:mb-6">
                 <h2 class="text-xl sm:text-2xl font-semibold vet-page-title">Recepción clínica</h2>
-                <p class="vet-page-subtitle mt-1 text-sm sm:text-base">
-                    Seleccione o registre cliente y mascota, y opcionalmente cree el acceso al portal.
-                </p>
+                
             </div>
 
             <div

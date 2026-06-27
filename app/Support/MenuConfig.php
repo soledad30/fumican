@@ -104,7 +104,7 @@ class MenuConfig
                 'permission' => null,
                 'children' => [
                     ['name' => 'Clientes', 'link' => '/servicios/clientes', 'permission' => 'listar_clientes'],
-                    ['name' => 'Recepción (nuevo)', 'link' => '/servicios/recepcion', 'permission' => 'crear_clientes'],
+                    ['name' => 'Recepción', 'link' => '/servicios/recepcion', 'permission' => 'crear_clientes'],
                     ['name' => 'Veterinarios', 'link' => '/servicios/veterinarios', 'permission' => 'listar_veterinarios'],
                     ['name' => 'Pagos', 'link' => '/servicios/pagos', 'permission' => 'listar_pagos'],
                     ['name' => 'Especies', 'link' => '/servicios/especies', 'permission' => 'listar_mascotas'],

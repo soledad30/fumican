@@ -169,18 +169,7 @@ const esEstadoAgenda = computed(() =>
     ["reservada", "en_espera"].includes(form.value.estado)
 );
 
-const hintCrearConsulta = computed(() => {
-    if (form.value.estado === "reservada") {
-        return "Indique fecha y hora de la cita. Aparecerá en la Agenda como «Reservada».";
-    }
-    if (form.value.estado === "en_espera") {
-        return "El paciente quedará en sala de espera en la Agenda.";
-    }
-    if (form.value.estado === "en_atencion") {
-        return "Al seleccionar la mascota pasará a «En atención» en la Agenda. Al guardar la ficha quedará «Completada» si así lo indica el estado.";
-    }
-    return "Consulta clínica directa. Al guardar quedará en el estado seleccionado.";
-});
+
 
 // --- FORM ---
 const defaultFormState = {
@@ -283,18 +272,7 @@ const estadosFormularioOpciones = computed(() => {
     }));
 });
 
-const accionesEnTablaHint = computed(() => {
-    const hints = {
-        reservada:
-            "En la columna Acciones: Check-in, Cancelar y (si aplica) Llegó tarde o No asistió. También en Agenda del día.",
-        en_espera: "En Acciones: Atender y Cancelar.",
-        en_atencion: "En Acciones: Completar y Cancelar.",
-        completada: "Sin cambios de estado en la fila. Quedan Cobrar, ver, editar, PDF e historial.",
-        cancelada: "Estado final. Solo Cobrar (si hay saldo) e iconos de consulta.",
-        no_asistio: "Estado final. Reprogramar desde Acciones si corresponde.",
-    };
-    return hints[form.value.estado] || "";
-});
+
 
 function esFechaPasada(consultation) {
     return esReservaVencida(consultation);
@@ -1762,12 +1740,7 @@ async function submitDelete() {
                             >
                                 <strong>Después de guardar:</strong> {{ accionesEnTablaHint }}
                             </p>
-                            <p
-                                v-if="modalMode === 'create'"
-                                class="text-xs text-gray-500 mt-1"
-                            >
-                                «Cancelada» y «No asistió» no se eligen al crear; aparecen como botones en la fila cuando la cita lo requiere.
-                            </p>
+                           
                         </div>
                         <div v-if="esEstadoAgenda">
                             <InputLabel value="Fecha de la cita *" />
