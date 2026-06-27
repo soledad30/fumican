@@ -93,15 +93,18 @@ const ACCENTOS = {
 
 const GRUPOS_PERMISOS = [
     { titulo: "Sistema", prefijos: ["administrar", "ver_reportes"] },
-    { titulo: "Usuarios y roles", prefijos: ["listar_usuarios", "crear_usuarios", "editar_usuarios", "ver_usuarios", "listar_roles", "crear_roles", "editar_roles", "eliminar_roles"] },
+    { titulo: "Usuarios y roles", prefijos: ["listar_usuarios", "crear_usuarios", "editar_usuarios", "ver_usuarios", "gestionar_usuarios", "listar_roles", "crear_roles", "editar_roles", "eliminar_roles", "ver_roles"] },
     { titulo: "Clientes", prefijos: ["listar_clientes", "crear_clientes", "editar_clientes", "eliminar_clientes", "ver_clientes"] },
-    { titulo: "Mascotas", prefijos: ["listar_mascotas", "crear_mascotas", "editar_mascotas", "eliminar_mascotas", "ver_mascotas"] },
-    { titulo: "Veterinarios", prefijos: ["listar_veterinarios", "gestionar_veterinarios"] },
-    { titulo: "Consultas", prefijos: ["listar_consultas", "crear_consultas", "editar_consultas", "eliminar_consultas", "reservar_citas"] },
-    { titulo: "Historial / vacunas", prefijos: ["listar_historial", "gestionar_historial"] },
-    { titulo: "Servicios y pagos", prefijos: ["listar_servicios", "gestionar_servicios", "listar_pagos", "gestionar_pagos"] },
-    { titulo: "Ventas e inventario", prefijos: ["listar_productos", "gestionar_productos", "listar_inventarios", "gestionar_inventarios", "listar_ventas", "gestionar_ventas"] },
-    { titulo: "Compras", prefijos: ["listar_compras", "gestionar_compras"] },
+    { titulo: "Mascotas", prefijos: ["listar_mascotas", "crear_mascotas", "editar_mascotas", "eliminar_mascotas", "ver_mascotas", "gestionar_mascotas"] },
+    { titulo: "Veterinarios", prefijos: ["listar_veterinarios", "crear_veterinarios", "editar_veterinarios", "eliminar_veterinarios", "ver_veterinarios", "gestionar_veterinarios"] },
+    { titulo: "Consultas", prefijos: ["listar_consultas", "crear_consultas", "editar_consultas", "eliminar_consultas", "ver_consultas", "reservar_citas", "gestionar_consultas"] },
+    { titulo: "Historial / vacunas", prefijos: ["listar_historial", "crear_historial", "editar_historial", "eliminar_historial", "ver_historial", "gestionar_historial"] },
+    { titulo: "Servicios", prefijos: ["listar_servicios", "crear_servicios", "editar_servicios", "eliminar_servicios", "ver_servicios", "gestionar_servicios"] },
+    { titulo: "Pagos", prefijos: ["listar_pagos", "crear_pagos", "editar_pagos", "eliminar_pagos", "ver_pagos", "gestionar_pagos"] },
+    { titulo: "Productos y categorías", prefijos: ["listar_productos", "crear_productos", "editar_productos", "eliminar_productos", "ver_productos", "gestionar_productos", "listar_categorias", "crear_categorias", "editar_categorias", "eliminar_categorias", "ver_categorias"] },
+    { titulo: "Inventario", prefijos: ["listar_inventarios", "crear_inventarios", "editar_inventarios", "eliminar_inventarios", "ver_inventarios", "gestionar_inventarios"] },
+    { titulo: "Ventas", prefijos: ["listar_ventas", "crear_ventas", "editar_ventas", "eliminar_ventas", "ver_ventas", "gestionar_ventas"] },
+    { titulo: "Compras y proveedores", prefijos: ["listar_compras", "crear_compras", "editar_compras", "eliminar_compras", "ver_compras", "gestionar_compras", "listar_proveedores", "crear_proveedores", "editar_proveedores", "eliminar_proveedores", "ver_proveedores"] },
 ];
 
 function formatPermiso(nombre) {

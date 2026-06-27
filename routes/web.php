@@ -120,9 +120,9 @@ Route::middleware([
         Route::prefix('veterinarios')->as('veterinarios.')->group(function () {
             Route::get('/', [VeterinarioController::class, 'index'])->middleware('permiso:listar_veterinarios')->name('index');
             Route::get('buscar', [VeterinarioController::class, 'search'])->middleware('permiso:listar_veterinarios')->name('search');
-            Route::post('/', [VeterinarioController::class, 'store'])->middleware('permiso:gestionar_veterinarios')->name('store');
-            Route::put('{veterinario}', [VeterinarioController::class, 'update'])->middleware('permiso:gestionar_veterinarios')->name('update');
-            Route::delete('{veterinario}', [VeterinarioController::class, 'destroy'])->middleware('permiso:gestionar_veterinarios')->name('destroy');
+            Route::post('/', [VeterinarioController::class, 'store'])->middleware('permiso:crear_veterinarios')->name('store');
+            Route::put('{veterinario}', [VeterinarioController::class, 'update'])->middleware('permiso:editar_veterinarios')->name('update');
+            Route::delete('{veterinario}', [VeterinarioController::class, 'destroy'])->middleware('permiso:eliminar_veterinarios')->name('destroy');
         });
 
         Route::prefix('mascotas')->as('mascotas.')->group(function () {

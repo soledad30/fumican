@@ -48,7 +48,19 @@ trait HasPermisosBd
 
     public function tienePermisoBd(string $nombreBd): bool
     {
-        return $this->getPermisosBd()->contains('nombre', $nombreBd);
+        $permisos = $this->getPermisosBd();
+
+        if ($permisos->contains('nombre', $nombreBd)) {
+            return true;
+        }
+
+        foreach (config('permisos-bd.paquetes', []) as $gestionar => $incluidos) {
+            if (in_array($nombreBd, $incluidos, true) && $permisos->contains('nombre', $gestionar)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getAllPermissions(): SupportCollection

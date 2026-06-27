@@ -14,10 +14,10 @@ class PermissionSeeder extends Seeder
     public function run(): void
     {
         foreach (config('permisos-catalogo', []) as $nombre => $descripcion) {
-            Permiso::updateOrCreate(
-                ['nombre' => $nombre],
-                ['descripcion' => $descripcion]
-            );
+            $permiso = Permiso::firstOrNew(['nombre' => $nombre]);
+            $permiso->descripcion = $descripcion;
+            $permiso->timestamps = false;
+            $permiso->save();
         }
     }
 }

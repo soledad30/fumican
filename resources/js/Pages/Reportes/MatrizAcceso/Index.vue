@@ -58,10 +58,7 @@ const totalPermisos = computed(() => props.permisos?.length ?? 0);
         <div class="vet-section-header">
             <div>
                 <h1 class="text-2xl font-bold vet-page-title">Matriz de control de acceso</h1>
-                <p class="vet-page-subtitle mt-1">
-                    Permisos asignados por rol — veterinario, cliente, propietario
-                    <span class="opacity-75">(administrador es permiso de sistema)</span>
-                </p>
+                
             </div>
             <Link :href="route('reportes.index')">
                 <FwbButton color="alternative" size="sm">

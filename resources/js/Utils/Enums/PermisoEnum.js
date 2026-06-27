@@ -38,6 +38,10 @@ const PermisoEnum = Object.freeze({
     ELIMINAR_MASCOTAS: 'eliminar mascotas',
 
     LISTAR_VETERINARIOS: 'listar veterinarios',
+    CREAR_VETERINARIOS: 'crear veterinarios',
+    EDITAR_VETERINARIOS: 'editar veterinarios',
+    VER_VETERINARIOS: 'ver veterinarios',
+    ELIMINAR_VETERINARIOS: 'eliminar veterinarios',
     GESTIONAR_VETERINARIOS: 'gestionar veterinarios',
 
     LISTAR_VACUNAS: 'listar vacunas',

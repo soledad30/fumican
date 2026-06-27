@@ -61,7 +61,9 @@ const customSpecialty = ref("");
 
 const { puede } = usePermisos();
 const isEmpty = computed(() => !props.veterinarios?.data?.length);
-const canManage = computed(() => puede("gestionar consultas"));
+const canCreate = computed(() => puede("crear veterinarios"));
+const canEdit = computed(() => puede("editar veterinarios"));
+const canDelete = computed(() => puede("eliminar veterinarios"));
 
 function displayToast(type, message) {
     toastType.value = type;
@@ -271,7 +273,7 @@ function tipoLabel(vet) {
                 </p>
             </div>
             <FwbButton
-                v-if="canManage"
+                v-if="canCreate"
                 @click="openCreateModal"
                 color="green"
             >
@@ -377,8 +379,8 @@ function tipoLabel(vet) {
                         <FwbTableCell class="space-x-3 whitespace-nowrap">
                             <TableActionButtons
                                 :can-view="true"
-                                :can-edit="canManage"
-                                :can-delete="canManage"
+                                :can-edit="canEdit"
+                                :can-delete="canDelete"
                                 view-title="Ver"
                                 @view="openViewModal(vet)"
                                 @edit="openEditModal(vet)"

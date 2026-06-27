@@ -52,3 +52,36 @@ Artisan::command('fumican:install-local {--fresh : Borra y recrea la base de dat
 
     return 0;
 })->purpose('Instala BD local con esquema SQL en español y datos de demo');
+
+Artisan::command('fumican:sync-permisos', function () {
+    $catalogo = config('permisos-catalogo', []);
+    $creados = 0;
+    $actualizados = 0;
+
+    foreach ($catalogo as $nombre => $descripcion) {
+        $permiso = \App\Models\Usuarios\Permiso::firstOrNew(['nombre' => $nombre]);
+        $esNuevo = ! $permiso->exists;
+        $cambio = $esNuevo || $permiso->descripcion !== $descripcion;
+
+        $permiso->descripcion = $descripcion;
+        $permiso->timestamps = false;
+        $permiso->save();
+
+        if ($esNuevo) {
+            $creados++;
+        } elseif ($cambio) {
+            $actualizados++;
+        }
+    }
+
+    $this->info("Permisos sincronizados: {$creados} nuevos, {$actualizados} actualizados, ".count($catalogo).' en catálogo.');
+
+    $todosIds = \App\Models\Usuarios\Permiso::pluck('id')->all();
+    foreach (['administrador', 'propietario'] as $nombreRol) {
+        $rol = \App\Models\Usuarios\Rol::where('nombre', $nombreRol)->first();
+        $rol?->syncPermisos($todosIds);
+    }
+    $this->info('Roles administrador y propietario actualizados con todos los permisos.');
+
+    return 0;
+})->purpose('Sincroniza el catálogo de permisos con la tabla permisos');
