@@ -158,7 +158,7 @@ class ReservaController extends Controller
             $lnCiNit = $request->phone;
             $lcNroPago = 'fumican-'.rand(100000, 999999);
             $lcCorreo = $request->email ?: 'pagos@fumican.bo';
-            $lcUrlCallBack = 'https://mail.tecnoweb.org.bo/inf513/grupo17sa';
+            $lcUrlCallBack = 'https://tecnoweb.org.bo/inf513/grupo17sa';
             $lcUrlReturn = url('/');
 
             $nombreServicio = $request->descripcion
