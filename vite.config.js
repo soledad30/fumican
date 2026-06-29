@@ -25,4 +25,5 @@ export default defineConfig({
             'ziggy-js': path.resolve(__dirname, 'vendor/tightenco/ziggy/dist/index.js'),
         },
     },
+    base: '/inf513/grupo23sa/proyecto2.1/public/build/',
 });
