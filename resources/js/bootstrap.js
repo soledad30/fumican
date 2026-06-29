@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getAppBaseUrl } from '@/utils/appUrl';
+import { getAppBaseUrl } from '@/Utils/appUrl';
 
 window.axios = axios;
 

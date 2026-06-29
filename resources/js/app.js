@@ -9,7 +9,7 @@ import '../css/jovenes-overrides.css';
 import '../css/adultos-overrides.css';
 import { applyThemeEarly } from '@/Composables/useTheme';
 import { initAccessibilityEarly } from '@/Composables/useAccessibility';
-import { resolveAppUrl } from '@/utils/appUrl';
+import { resolveAppUrl } from '@/Utils/appUrl';
 
 applyThemeEarly();
 initAccessibilityEarly();
