@@ -1,13 +1,11 @@
 import axios from 'axios';
+import { getAppBaseUrl } from '@/utils/appUrl';
+
 window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 window.axios.defaults.withCredentials = true;
-
-const appBaseUrl = (window.Ziggy?.url ?? '').replace(/\/$/, '');
-if (appBaseUrl) {
-    window.axios.defaults.baseURL = appBaseUrl;
-}
+window.axios.defaults.baseURL = getAppBaseUrl();
 
 const csrfToken = document.head.querySelector('meta[name="csrf-token"]');
 if (csrfToken) {

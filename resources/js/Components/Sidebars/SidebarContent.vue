@@ -12,11 +12,24 @@ const page = usePage();
 const menus = computed(() => page.props.auth.user_menus ?? []);
 const rolActivo = computed(() => page.props.auth.user?.role?.name ?? page.props.auth.user?.role?.nombre ?? "Usuario");
 
+function linkPath(link) {
+    if (!link) return "";
+    if (link.startsWith("http")) {
+        try {
+            return new URL(link).pathname;
+        } catch {
+            return link;
+        }
+    }
+    return link.split("?")[0];
+}
+
 function isActive(link) {
     if (!link) return false;
     const url = page.url.split("?")[0];
-    if (link === "/dashboard") return url === "/dashboard";
-    return url === link || url.startsWith(link + "/");
+    const path = linkPath(link);
+    if (path === "/dashboard") return url === "/dashboard";
+    return url === path || url.startsWith(path + "/");
 }
 
 function menuActivo(menu) {
