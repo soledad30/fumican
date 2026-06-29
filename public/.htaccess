@@ -4,8 +4,6 @@
     </IfModule>
 
     RewriteEngine On
-
-    # Establecer base para subdirectorio
     RewriteBase /inf513/grupo23sa/proyecto2.1/public/
 
     # Handle Authorization Header

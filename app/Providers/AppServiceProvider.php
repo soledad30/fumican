@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Event;
 use App\Support\InstalarEsquemaSql;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -21,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($appUrl = config('app.url')) {
+            URL::forceRootUrl($appUrl);
+        }
+
         Route::bind('user', fn (string $value) => Usuario::findOrFail($value));
 
         if (config('database.default') === 'pgsql') {
