@@ -1,13 +1,24 @@
 <script setup>
-defineProps({
-    message: String,
+import { computed } from 'vue';
+
+const props = defineProps({
+    message: {
+        type: [String, Array],
+        default: '',
+    },
+});
+
+const text = computed(() => {
+    if (Array.isArray(props.message)) {
+        return props.message[0] ?? '';
+    }
+
+    return props.message ?? '';
 });
 </script>
 
 <template>
-    <div v-show="message">
-        <p class="text-sm text-red-600">
-            {{ message }}
-        </p>
-    </div>
+    <p v-if="text" class="mt-1 text-sm font-medium !text-red-600 dark:!text-red-400">
+        {{ text }}
+    </p>
 </template>

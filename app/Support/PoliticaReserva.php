@@ -7,6 +7,30 @@ use Carbon\Carbon;
 
 final class PoliticaReserva
 {
+    public static function minutosGracia(): int
+    {
+        return max(0, (int) config('reservas.minutos_gracia_no_asistio', 20));
+    }
+
+    public static function normalizarHora(?string $hora): string
+    {
+        if (! $hora) {
+            return '23:59:00';
+        }
+
+        $hora = trim($hora);
+
+        if (preg_match('/^\d{2}:\d{2}$/', $hora)) {
+            return $hora.':00';
+        }
+
+        if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $hora)) {
+            return $hora;
+        }
+
+        return Carbon::parse($hora)->format('H:i:s');
+    }
+
     public static function horaCierreHoy(): Carbon
     {
         $cierre = (string) config('reservas.hora_cierre_clinica', '19:00');
@@ -29,11 +53,16 @@ final class PoliticaReserva
             return null;
         }
 
-        $hora = $consulta->hora
-            ? Carbon::parse($consulta->hora)->format('H:i:s')
-            : '23:59:00';
+        $hora = self::normalizarHora($consulta->hora ? (string) $consulta->hora : null);
 
         return Carbon::parse(Carbon::parse($consulta->fecha)->format('Y-m-d').' '.$hora);
+    }
+
+    public static function finVentanaAsistencia(ConsultaMedica $consulta): ?Carbon
+    {
+        $inicio = self::inicioCita($consulta);
+
+        return $inicio?->copy()->addMinutes(self::minutosGracia());
     }
 
     public static function esHoy(ConsultaMedica $consulta): bool
@@ -50,7 +79,30 @@ final class PoliticaReserva
         return $inicio && $inicio->isPast();
     }
 
-    /** El día de la cita ya cerró (día anterior o hoy después de hora de cierre). */
+    /**
+     * Tras la hora de la cita + minutos de gracia (o día anterior), sin check-in → no asistió.
+     */
+    public static function ventanaNoAsistioCumplida(ConsultaMedica $consulta): bool
+    {
+        $fecha = self::fechaCita($consulta);
+        if (! $fecha) {
+            return false;
+        }
+
+        if ($fecha->lt(Carbon::today())) {
+            return true;
+        }
+
+        if ($fecha->gt(Carbon::today())) {
+            return false;
+        }
+
+        $fin = self::finVentanaAsistencia($consulta);
+
+        return $fin && now()->gte($fin);
+    }
+
+    /** El día de la cita ya cerró para reprogramación tardía. */
     public static function diaCitaTerminado(ConsultaMedica $consulta): bool
     {
         $fecha = self::fechaCita($consulta);
@@ -63,7 +115,11 @@ final class PoliticaReserva
         }
 
         if ($fecha->eq(Carbon::today())) {
-            return now()->gte(self::horaCierreHoy());
+            $finVentana = self::finVentanaAsistencia($consulta);
+            $cierre = self::horaCierreHoy();
+            $limite = $finVentana && $finVentana->gt($cierre) ? $finVentana : $cierre;
+
+            return now()->gte($limite);
         }
 
         return false;
@@ -88,6 +144,6 @@ final class PoliticaReserva
 
     public static function puedeMarcarNoAsistio(ConsultaMedica $consulta): bool
     {
-        return $consulta->estado === 'reservada' && self::diaCitaTerminado($consulta);
+        return $consulta->estado === 'reservada' && self::ventanaNoAsistioCumplida($consulta);
     }
 }

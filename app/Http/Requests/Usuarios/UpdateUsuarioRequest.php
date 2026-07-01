@@ -56,6 +56,11 @@ class UpdateUsuarioRequest extends FormRequest
             'role_id' => 'required|exists:roles,id',
             'esta_activo' => 'sometimes|boolean',
             'password' => ['sometimes', 'nullable', 'string', 'min:8', 'confirmed'],
+            'ci' => 'nullable|string|max:20',
+            'telefono' => 'nullable|string|max:20',
+            'fecha_nacimiento' => 'nullable|date',
+            'direccion' => 'nullable|string|max:255',
+            'especialidad' => 'nullable|string|max:120',
         ];
     }
 

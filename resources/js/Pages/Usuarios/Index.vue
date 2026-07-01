@@ -17,6 +17,7 @@ import {
 import { computed, ref, watch, inject } from "vue";
 import axios from "axios";
 import { usePermisos } from "@/Composables/usePermisos";
+import { useFormErrors } from "@/Composables/useFormErrors";
 
 const route = inject("route");
 
@@ -34,7 +35,10 @@ const props = defineProps({
     vinculosDisponibles: Object,
 });
 
-const filters = ref({ search_term: props.filters?.search_term || "" });
+const filters = ref({
+    search_term: props.filters?.search_term || "",
+    role_id: props.filters?.role_id || "",
+});
 function applyFilters() {
     router.get(route("usuarios.search"), filters.value, {
         preserveState: true,
@@ -42,7 +46,7 @@ function applyFilters() {
     });
 }
 function resetFilters() {
-    filters.value = { search_term: "" };
+    filters.value = { search_term: "", role_id: "" };
     router.get(route("usuarios.index"));
 }
 
@@ -84,9 +88,14 @@ const defaultFormState = {
     veterinario_id: "",
     reactivar_usuario_id: "",
     vinculo_id: "",
+    ci: "",
+    telefono: "",
+    fecha_nacimiento: "",
+    direccion: "",
+    especialidad: "",
 };
 const form = ref({ ...defaultFormState });
-const formErrors = ref({});
+const { clearErrors, fromAxios, get } = useFormErrors();
 const autoPassword = ref(true);
 const showPassword = ref(false);
 
@@ -211,7 +220,7 @@ function openCreateModal() {
     editingUserId.value = null;
     autoPassword.value = true;
     form.value = { ...defaultFormState };
-    formErrors.value = {};
+    clearErrors();
     isCreateOrEditModal.value = true;
 }
 
@@ -230,8 +239,13 @@ function openEditModal(user) {
         esta_activo: user.esta_activo ?? true,
         password: "",
         password_confirmation: "",
+        ci: user.ci ?? user.cliente_perfil?.ci ?? "",
+        telefono: user.telefono ?? "",
+        fecha_nacimiento: user.fecha_nacimiento ? String(user.fecha_nacimiento).slice(0, 10) : "",
+        direccion: user.direccion ?? "",
+        especialidad: user.especialidad ?? "",
     };
-    formErrors.value = {};
+    clearErrors();
     isCreateOrEditModal.value = true;
 }
 
@@ -287,6 +301,12 @@ function buildUsuarioPayload() {
         payload.password_confirmation = form.value.password_confirmation;
     }
 
+    if (form.value.ci) payload.ci = form.value.ci;
+    if (form.value.telefono) payload.telefono = form.value.telefono;
+    if (form.value.fecha_nacimiento) payload.fecha_nacimiento = form.value.fecha_nacimiento;
+    if (form.value.direccion) payload.direccion = form.value.direccion;
+    if (form.value.especialidad) payload.especialidad = form.value.especialidad;
+
     if (modalMode.value === "create") {
         if (form.value.cliente_id) {
             payload.cliente_id = form.value.cliente_id;
@@ -304,7 +324,7 @@ function buildUsuarioPayload() {
 
 async function submitForm() {
     loading.value = true;
-    formErrors.value = {};
+    clearErrors();
 
     const payload = buildUsuarioPayload();
 
@@ -318,14 +338,14 @@ async function submitForm() {
             await axios.put(usuarioUpdateUrl(id), payload);
             displayToast("success", "Usuario actualizado correctamente.");
         } else {
-            await axios.post(route("usuarios.store"), payload);
-            displayToast("success", "Usuario registrado correctamente.");
+            const { data } = await axios.post(route("usuarios.store"), payload);
+            displayToast("success", data.message || "Usuario registrado correctamente.");
         }
         closeAllModals();
         router.reload({ only: ["users", "vinculosDisponibles"] });
     } catch (e) {
         if (e.response?.status === 422) {
-            formErrors.value = e.response.data.errors;
+            fromAxios(e);
             displayToast(
                 "danger",
                 "Por favor, corrige los errores del formulario."
@@ -390,9 +410,9 @@ async function submitDelete() {
             @submit.prevent="applyFilters"
             class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 vet-filter-panel"
         >
-            <div class="md:col-span-3">
+            <div class="md:col-span-2">
                 <label class="block text-sm font-medium mb-1.5"
-                    >Buscar por Nombre, Apellido o Correo</label
+                    >Buscar por nombre, correo, CI o teléfono</label
                 >
                 <TextInput
                     v-model="filters.search_term"
@@ -400,6 +420,15 @@ async function submitDelete() {
                     class="mt-1 block w-full"
                     placeholder="Escriba para buscar..."
                 />
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1.5">Filtrar por rol</label>
+                <select v-model="filters.role_id" class="w-full mt-1 rounded-md shadow-sm themed-input">
+                    <option value="">Todos los roles</option>
+                    <option v-for="role in roles" :key="role.id" :value="role.id">
+                        {{ role.name || role.nombre }}
+                    </option>
+                </select>
             </div>
             <div class="flex items-end space-x-2">
                 <FwbButton color="green" type="submit">Filtrar</FwbButton>
@@ -420,6 +449,9 @@ async function submitDelete() {
                     >Correo</FwbTableHeadCell
                 >
                 <FwbTableHeadCell
+                    >Teléfono</FwbTableHeadCell
+                >
+                <FwbTableHeadCell
                     >Rol</FwbTableHeadCell
                 >
                 <FwbTableHeadCell
@@ -435,7 +467,7 @@ async function submitDelete() {
             <FwbTableBody>
                 <FwbTableRow v-if="!users.data.length"
                     ><FwbTableCell
-                        colspan="6"
+                        colspan="7"
                         class="text-center py-8 vet-cell-muted"
                         >No se encontraron usuarios.</FwbTableCell
                     ></FwbTableRow
@@ -449,6 +481,9 @@ async function submitDelete() {
                     }}</FwbTableCell>
                     <FwbTableCell class="vet-cell-muted">{{
                         user.email
+                    }}</FwbTableCell>
+                    <FwbTableCell class="vet-cell-muted">{{
+                        user.telefono || "—"
                     }}</FwbTableCell>
                     <FwbTableCell class="vet-cell-primary">{{
                         user.role?.name || user.role?.nombre || "N/A"
@@ -503,13 +538,26 @@ async function submitDelete() {
                 >
                     <p><strong>Nombre:</strong> {{ selectedUser.full_name }}</p>
                     <p><strong>Correo:</strong> {{ selectedUser.email }}</p>
+                    <p v-if="selectedUser.ci"><strong>CI:</strong> {{ selectedUser.ci }}</p>
+                    <p v-if="selectedUser.telefono"><strong>Teléfono:</strong> {{ selectedUser.telefono }}</p>
+                    <p v-if="selectedUser.fecha_nacimiento"><strong>Fecha de nacimiento:</strong> {{ selectedUser.fecha_nacimiento }}</p>
+                    <p v-if="selectedUser.direccion"><strong>Dirección:</strong> {{ selectedUser.direccion }}</p>
+                    <p v-if="selectedUser.especialidad"><strong>Especialidad:</strong> {{ selectedUser.especialidad }}</p>
                     <p>
                         <strong>Rol:</strong>
                         {{ selectedUser.role?.name || selectedUser.role?.nombre || "N/A" }}
                     </p>
                     <p>
+                        <strong>Estado:</strong>
+                        {{ selectedUser.esta_activo !== false ? "Activo" : "Baja" }}
+                    </p>
+                    <p>
                         <strong>Registrado:</strong>
                         {{ selectedUser.created_at }}
+                    </p>
+                    <p>
+                        <strong>Actualizado:</strong>
+                        {{ selectedUser.updated_at }}
                     </p>
                 </div>
             </template>
@@ -578,7 +626,7 @@ async function submitDelete() {
                                 {{ role.name || role.nombre }}
                             </option>
                         </select>
-                        <InputError :message="formErrors.role_id?.[0]" />
+                        <InputError :message="get('role_id')" />
                     </div>
 
                     <div
@@ -617,7 +665,7 @@ async function submitDelete() {
                                 v-model="form.first_name"
                                 class="mt-1 w-full themed-input"
                             /><InputError
-                                :message="formErrors.first_name?.[0]"
+                                :message="get('first_name')"
                             />
                         </div>
                         <div>
@@ -625,7 +673,7 @@ async function submitDelete() {
                                 v-model="form.last_name"
                                 class="mt-1 w-full themed-input"
                             /><InputError
-                                :message="formErrors.last_name?.[0]"
+                                :message="get('last_name')"
                             />
                         </div>
                     </div>
@@ -634,7 +682,34 @@ async function submitDelete() {
                             v-model="form.email"
                             type="email"
                             class="mt-1 w-full themed-input"
-                        /><InputError :message="formErrors.email?.[0]" />
+                        /><InputError :message="get('email')" />
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel value="CI" />
+                            <TextInput v-model="form.ci" class="mt-1 w-full themed-input" />
+                            <InputError :message="get('ci')" />
+                        </div>
+                        <div>
+                            <InputLabel value="Teléfono" />
+                            <TextInput v-model="form.telefono" class="mt-1 w-full themed-input" />
+                            <InputError :message="get('telefono')" />
+                        </div>
+                        <div>
+                            <InputLabel value="Fecha de nacimiento" />
+                            <TextInput v-model="form.fecha_nacimiento" type="date" class="mt-1 w-full themed-input" />
+                            <InputError :message="get('fecha_nacimiento')" />
+                        </div>
+                        <div>
+                            <InputLabel value="Dirección" />
+                            <TextInput v-model="form.direccion" class="mt-1 w-full themed-input" />
+                            <InputError :message="get('direccion')" />
+                        </div>
+                        <div v-if="nombreRolSeleccionado === 'veterinario'" class="md:col-span-2">
+                            <InputLabel value="Especialidad" />
+                            <TextInput v-model="form.especialidad" class="mt-1 w-full themed-input" />
+                            <InputError :message="get('especialidad')" />
+                        </div>
                     </div>
                     <div v-if="modalMode === 'edit'">
                         <FwbToggle
@@ -648,6 +723,10 @@ async function submitDelete() {
                             v-model="autoPassword"
                             label="Generar/Mantener contraseña automáticamente"
                         />
+                        <p v-if="autoPassword && modalMode === 'create'" class="text-xs text-gray-500 mt-2">
+                            Si no define contraseña, se generará una temporal: nombre + inicial del apellido + año actual
+                            (ej. Juan Pérez → JuanP2026).
+                        </p>
                     </div>
                     <div
                         v-if="!autoPassword"
@@ -673,7 +752,7 @@ async function submitDelete() {
                                     }"
                                 ></i>
                             </button>
-                            <InputError :message="formErrors.password?.[0]" />
+                            <InputError :message="get('password')" />
                         </div>
                         <div class="relative">
                             <InputLabel value="Confirmar Contraseña" />
@@ -683,7 +762,7 @@ async function submitDelete() {
                                 class="mt-1 w-full themed-input"
                             />
                             <InputError
-                                :message="formErrors.password_confirmation?.[0]"
+                                :message="get('password_confirmation')"
                             />
                         </div>
                     </div>

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\Auditoria\BitacoraService;
+use App\Support\BitacoraDescripciones;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,9 +16,13 @@ class TrackVisits
     {
         $response = $next($request);
 
-        if ($request->isMethod('GET') && $request->user() && $request->header('X-Inertia')) {
+        if ($request->isMethod('GET') && $request->user() && $request->header('X-Inertia') && $response->isSuccessful()) {
             try {
-                $this->bitacoraService->accesoRecurso('/'.$request->path(), $request->route()?->getName());
+                $descripcion = BitacoraDescripciones::describirNavegacion(
+                    $request->route()?->getName(),
+                    $request->path()
+                );
+                $this->bitacoraService->registrar('acceso', 'navegacion', $descripcion);
             } catch (\Throwable) {
                 //
             }

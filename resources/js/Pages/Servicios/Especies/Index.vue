@@ -9,11 +9,14 @@ import {
     FwbModal, FwbToast,
 } from "flowbite-vue";
 import InputLabel from "@/Components/InputLabel.vue";
+import InputError from "@/Components/InputError.vue";
 import TextInput from "@/Components/TextInput.vue";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
 import { usePermisos } from "@/Composables/usePermisos";
+import { useFormErrors } from "@/Composables/useFormErrors";
 
 const props = defineProps({ especies: Object });
+const { formErrors, clearErrors, fromAxios, get } = useFormErrors();
 const currentPage = ref(props.especies.current_page || 1);
 const showToast = ref(false);
 const toastMsg = ref("");
@@ -25,8 +28,8 @@ const selected = ref(null);
 const form = ref({ nombre: "" });
 
 const { puede } = usePermisos();
-const canCreate = computed(() => puede("crear mascotas"));
-const canEdit = computed(() => puede("editar mascotas"));
+const canCreate = computed(() => puede("crear especies"));
+const canEdit = computed(() => puede("editar especies"));
 
 watch(currentPage, (page) => {
     router.get(route("especies.index"), { page }, { preserveState: true });
@@ -42,12 +45,14 @@ function toast(type, msg) {
 function openCreate() {
     selected.value = null;
     form.value = { nombre: "" };
+    clearErrors();
     isModal.value = true;
 }
 
 function openEdit(e) {
     selected.value = e;
     form.value = { nombre: e.nombre ?? e.name };
+    clearErrors();
     isModal.value = true;
 }
 
@@ -58,6 +63,7 @@ function openDelete(e) {
 
 async function submit() {
     loading.value = true;
+    clearErrors();
     try {
         const url = selected.value
             ? route("especies.update", selected.value.id)
@@ -68,7 +74,7 @@ async function submit() {
         isModal.value = false;
         router.reload();
     } catch (e) {
-        toast("danger", e.response?.data?.message || "Error al guardar");
+        toast("danger", fromAxios(e) || "Error al guardar");
     } finally {
         loading.value = false;
     }
@@ -127,7 +133,11 @@ async function confirmDelete() {
         <FwbModal v-if="isModal" @close="isModal = false">
             <template #header><h3>{{ selected ? "Editar" : "Nueva" }} especie</h3></template>
             <template #body>
-                <div><InputLabel value="Nombre" /><TextInput v-model="form.nombre" class="w-full" /></div>
+                <div>
+                    <InputLabel value="Nombre" />
+                    <TextInput v-model="form.nombre" class="w-full" />
+                    <InputError :message="get('nombre')" />
+                </div>
             </template>
             <template #footer>
                 <FwbButton color="alternative" @click="isModal = false">Cancelar</FwbButton>

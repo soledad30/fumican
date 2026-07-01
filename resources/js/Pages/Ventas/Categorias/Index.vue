@@ -17,9 +17,14 @@ import {
     FwbToast,
 } from "flowbite-vue";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
+import InputLabel from "@/Components/InputLabel.vue";
+import InputError from "@/Components/InputError.vue";
+import TextInput from "@/Components/TextInput.vue";
+import { useFormErrors } from "@/Composables/useFormErrors";
 
 // Props
 const props = defineProps({ categories: Object });
+const { clearErrors, fromAxios, get } = useFormErrors();
 const currentPage = ref(props.categories.current_page || 1);
 watch(currentPage, (page) => {
     router.get(route("categorias.index"), { page }, { preserveState: true });
@@ -52,11 +57,13 @@ function openView(category) {
 function openCreate() {
     selected.value = null;
     formCategory.value = { name: "" };
+    clearErrors();
     isCreateModal.value = true;
 }
 function openEdit(category) {
     selected.value = category;
     formCategory.value = { name: category.name };
+    clearErrors();
     isEditModal.value = true;
 }
 function openDelete(category) {
@@ -67,6 +74,7 @@ function openDelete(category) {
 // CRUD actions
 async function submitCreate() {
     loading.value = true;
+    clearErrors();
     try {
         const { data } = await axios.post(
             route("categorias.store"),
@@ -79,15 +87,7 @@ async function submitCreate() {
         router.reload();
     } catch (error) {
         toastType.value = "danger";
-        if (error.response?.data?.errors) {
-            toastMsg.value = Object.values(error.response.data.errors)
-                .flat()
-                .join(" ");
-        } else if (error.response?.data?.message) {
-            toastMsg.value = error.response.data.message;
-        } else {
-            toastMsg.value = "Error al crear categoría";
-        }
+        toastMsg.value = fromAxios(error) || "Error al crear categoría";
     } finally {
         loading.value = false;
         showToast.value = true;
@@ -97,6 +97,7 @@ async function submitCreate() {
 
 async function submitEdit() {
     loading.value = true;
+    clearErrors();
     try {
         const { data } = await axios.put(
             route("categorias.update", selected.value.id),
@@ -108,15 +109,7 @@ async function submitEdit() {
         router.reload();
     } catch (error) {
         toastType.value = "danger";
-        if (error.response?.data?.errors) {
-            toastMsg.value = Object.values(error.response.data.errors)
-                .flat()
-                .join(" ");
-        } else if (error.response?.data?.message) {
-            toastMsg.value = error.response.data.message;
-        } else {
-            toastMsg.value = "Error al actualizar categoría";
-        }
+        toastMsg.value = fromAxios(error) || "Error al actualizar categoría";
     } finally {
         loading.value = false;
         showToast.value = true;
@@ -230,11 +223,9 @@ async function submitDelete() {
             <template #body>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm">Nombre</label>
-                        <input
-                            v-model="formCategory.name"
-                            class="w-full p-2 border rounded"
-                        />
+                        <InputLabel value="Nombre" />
+                        <TextInput v-model="formCategory.name" class="w-full" />
+                        <InputError :message="get('name')" />
                     </div>
                 </div>
             </template>
@@ -259,11 +250,9 @@ async function submitDelete() {
             <template #body>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm">Nombre</label>
-                        <input
-                            v-model="formCategory.name"
-                            class="w-full p-2 border rounded"
-                        />
+                        <InputLabel value="Nombre" />
+                        <TextInput v-model="formCategory.name" class="w-full" />
+                        <InputError :message="get('name')" />
                     </div>
                 </div>
             </template>

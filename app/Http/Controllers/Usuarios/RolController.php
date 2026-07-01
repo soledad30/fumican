@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Usuarios;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Usuarios\DestroyRolRequest;
 use App\Http\Requests\Usuarios\StoreRolRequest;
 use App\Http\Requests\Usuarios\UpdateRolRequest;
 use App\Services\Usuarios\PermisoService;
@@ -22,6 +23,7 @@ class RolController extends Controller
 
         return Inertia::render('Usuarios/Roles/Index', [
             'roles' => $roles,
+            'rolesExistentes' => $this->rolService->listarParaValidacion(),
             'permissions' => $permissions,
             'filters' => request()->only('search_term'),
         ]);
@@ -70,10 +72,14 @@ class RolController extends Controller
         }
     }
 
-    public function destroy(string $id): JsonResponse
+    public function destroy(DestroyRolRequest $request, string $id): JsonResponse
     {
         try {
             $role = $this->rolService->getById($id);
+
+            if ($this->rolService->esRolProtegido($role->nombre)) {
+                return response()->json(['message' => 'No se puede eliminar un rol del sistema.'], 403);
+            }
 
             if ($role->usuarios()->exists()) {
                 return response()->json(['message' => 'No se puede eliminar un rol con usuarios asignados.'], 409);

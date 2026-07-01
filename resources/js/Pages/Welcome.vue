@@ -553,6 +553,7 @@ function closePaymentModal() {
 
 async function generateQrCode() {
   try {
+    const monto = Number(montoAnticipoMostrar.value)
     const response = await fetch('/api/generar-qr', {
       method: 'POST',
       headers: {
@@ -560,7 +561,14 @@ async function generateQrCode() {
         'Content-Type': 'application/json',
         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
       },
-      body: JSON.stringify(appointmentForm.value),
+      body: JSON.stringify({
+        name: appointmentForm.value.name,
+        phone: appointmentForm.value.phone,
+        email: appointmentForm.value.email,
+        serviceId: appointmentForm.value.serviceId,
+        descripcion: appointmentForm.value.service || 'Reserva cita veterinaria',
+        monto,
+      }),
     })
 
     if (!response.ok) throw new Error('Error al generar el QR')

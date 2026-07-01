@@ -15,6 +15,8 @@ const props = defineProps({
     mascotas: Array,
     servicios: { type: Array, default: () => [] },
     horarios: { type: Array, default: () => [] },
+    deudas: { type: Array, default: () => [] },
+    compras: { type: Array, default: () => [] },
 });
 
 const showReservaModal = ref(false);
@@ -189,6 +191,30 @@ async function enviarReserva() {
                     </FwbButton>
                 </div>
             </div>
+        </div>
+
+        <div v-if="deudas?.length" class="vet-panel p-4 sm:p-6 mt-6 border-amber-200 bg-amber-50/50">
+            <h3 class="font-semibold text-lg mb-3 text-amber-900">Pagos pendientes</h3>
+            <ul class="space-y-2 text-sm">
+                <li v-for="d in deudas" :key="`${d.tipo}-${d.id}`" class="flex justify-between gap-4">
+                    <span>{{ d.descripcion }}</span>
+                    <strong class="text-amber-800">Bs. {{ Number(d.saldo).toFixed(2) }}</strong>
+                </li>
+            </ul>
+            <p class="text-xs text-amber-700 mt-3">Acuda a recepción para registrar su pago. Los clientes no pueden eliminar pagos.</p>
+        </div>
+
+        <div v-if="compras?.length" class="vet-panel p-4 sm:p-6 mt-6">
+            <h3 class="font-semibold text-lg mb-3">Mis compras recientes</h3>
+            <ul class="space-y-2 text-sm">
+                <li v-for="c in compras" :key="c.id" class="flex justify-between gap-4 border-b pb-2">
+                    <span>Nota #{{ c.id }} — {{ c.fecha }}</span>
+                    <span>
+                        Total Bs. {{ Number(c.total).toFixed(2) }}
+                        <span v-if="c.saldo > 0" class="text-amber-700">(saldo Bs. {{ Number(c.saldo).toFixed(2) }})</span>
+                    </span>
+                </li>
+            </ul>
         </div>
 
         <div v-if="servicios?.length" class="vet-panel p-4 sm:p-6 mt-6">

@@ -12,7 +12,7 @@ class StoreRazaRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->usuarioPuede(PermisoEnum::CREAR_MASCOTAS);
+        return $this->usuarioPuede(PermisoEnum::CREAR_RAZAS);
     }
 
     protected function prepareForValidation(): void

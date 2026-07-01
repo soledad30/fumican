@@ -42,6 +42,18 @@ enum PermisoEnum: string
     case VER_MASCOTAS = 'ver mascotas';
     case ELIMINAR_MASCOTAS = 'eliminar mascotas';
 
+    case LISTAR_ESPECIES = 'listar especies';
+    case CREAR_ESPECIES = 'crear especies';
+    case EDITAR_ESPECIES = 'editar especies';
+    case VER_ESPECIES = 'ver especies';
+    case ELIMINAR_ESPECIES = 'eliminar especies';
+
+    case LISTAR_RAZAS = 'listar razas';
+    case CREAR_RAZAS = 'crear razas';
+    case EDITAR_RAZAS = 'editar razas';
+    case VER_RAZAS = 'ver razas';
+    case ELIMINAR_RAZAS = 'eliminar razas';
+
     case LISTAR_VETERINARIOS = 'listar veterinarios';
     case CREAR_VETERINARIOS = 'crear veterinarios';
     case EDITAR_VETERINARIOS = 'editar veterinarios';

@@ -68,6 +68,9 @@ const allSpecies = ref([]);
 const breedsForSpecie = ref([]);
 const isFetchingBreeds = ref(false);
 const isFetchingClientes = ref(false);
+const clienteListo = ref(false);
+const clienteSnapshot = ref(null);
+let buscarClientesTimeout = null;
 const specieMode = ref("list");
 const breedMode = ref("list");
 const customSpecie = ref("");
@@ -114,9 +117,20 @@ watch(modoCliente, (modo) => {
     if (modo === "nuevo") {
         clienteSeleccionadoId.value = "";
         clienteId.value = null;
+        clienteListo.value = false;
+        clienteSnapshot.value = null;
         clienteTieneUsuario.value = false;
         limpiarFormularioCliente();
+    } else {
+        clienteListo.value = false;
+        clienteSnapshot.value = null;
+        buscarClientes();
     }
+});
+
+watch(clienteBusqueda, () => {
+    clearTimeout(buscarClientesTimeout);
+    buscarClientesTimeout = setTimeout(() => buscarClientes(), 300);
 });
 
 watch(modoMascota, (modo) => {
@@ -201,22 +215,47 @@ async function buscarClientes() {
     isFetchingClientes.value = true;
     try {
         const { data } = await axios.get(route("recepcion.clientes"), {
-            params: { search: clienteBusqueda.value },
+            params: { search: clienteBusqueda.value.trim() },
         });
-        clientesOpciones.value = data;
+        clientesOpciones.value = Array.isArray(data) ? data : [];
     } catch {
+        clientesOpciones.value = [];
         toast("danger", "No se pudieron cargar los clientes.");
     } finally {
         isFetchingClientes.value = false;
     }
 }
 
+function etiquetaCliente(c) {
+    const nombre = (
+        c.full_name
+        || [c.first_name || c.nombre, c.last_name || c.apellido].filter(Boolean).join(" ")
+    ).trim();
+
+    return `${nombre || "Sin nombre"} — CI ${c.ci || "—"}`;
+}
+
+function snapshotClienteActual() {
+    return JSON.stringify(payloadCliente());
+}
+
+function clienteDatosModificados() {
+    if (!clienteSnapshot.value) {
+        return false;
+    }
+
+    return snapshotClienteActual() !== clienteSnapshot.value;
+}
+
 async function cargarClienteSeleccionado() {
     if (!clienteSeleccionadoId.value) {
+        clienteListo.value = false;
+        clienteSnapshot.value = null;
         return;
     }
 
     loading.value = true;
+    clienteListo.value = false;
     try {
         const { data } = await axios.get(
             route("recepcion.clientes.show", clienteSeleccionadoId.value)
@@ -235,7 +274,11 @@ async function cargarClienteSeleccionado() {
         };
         usuario.value.email = cliente.value.email;
         clienteUsuarioId.value = data.usuario_id ? "" : String(data.id);
+        clienteSnapshot.value = snapshotClienteActual();
+        clienteListo.value = true;
     } catch {
+        clienteListo.value = false;
+        clienteSnapshot.value = null;
         toast("danger", "No se pudo cargar el cliente.");
     } finally {
         loading.value = false;
@@ -416,16 +459,25 @@ async function resolveBreedBeforeSave() {
 }
 
 function payloadCliente() {
+    const gender = Number.parseInt(String(cliente.value.gender ?? "0"), 10);
+
     return {
         first_name: cliente.value.first_name,
         last_name: cliente.value.last_name,
         ci: cliente.value.ci,
         phone_number: cliente.value.phone_number,
-        gender: cliente.value.gender,
+        gender: Number.isNaN(gender) ? 0 : gender,
         birthdate: cliente.value.birthdate || null,
-        address: cliente.value.address,
+        address: cliente.value.address || null,
         email: cliente.value.email || null,
     };
+}
+
+async function avanzarAMascota() {
+    usuario.value.email = cliente.value.email;
+    await cargarMascotasCliente();
+    modoMascota.value = hayMascotasRegistradas.value ? "existente" : "nueva";
+    step.value = 2;
 }
 
 async function guardarCliente() {
@@ -436,39 +488,53 @@ async function guardarCliente() {
         if (modoCliente.value === "existente") {
             if (!clienteSeleccionadoId.value) {
                 toast("danger", "Seleccione un cliente de la lista.");
-                loading.value = false;
                 return;
             }
 
-            const { data } = await axios.put(
-                route("recepcion.clientes.update", clienteSeleccionadoId.value),
-                payloadCliente()
-            );
-            clienteId.value = data.customer?.id ?? clienteSeleccionadoId.value;
-            toast("success", "Cliente actualizado.");
-        } else {
-            const { data } = await axios.post(
-                route("recepcion.clientes.store"),
-                payloadCliente()
-            );
-            clienteId.value = data.customer?.id;
-            clienteSeleccionadoId.value = String(clienteId.value);
-            clienteUsuarioId.value = String(clienteId.value);
-            clientesSinUsuarioLista.value = [
-                data.customer,
-                ...clientesSinUsuarioLista.value.filter(
-                    (c) => String(c.id) !== String(data.customer?.id)
-                ),
-            ];
-            toast("success", "Cliente registrado.");
+            if (!clienteListo.value) {
+                await cargarClienteSeleccionado();
+            }
+
+            if (!clienteListo.value) {
+                return;
+            }
+
+            if (clienteDatosModificados()) {
+                const { data } = await axios.put(
+                    route("recepcion.clientes.update", clienteSeleccionadoId.value),
+                    payloadCliente()
+                );
+                clienteId.value = data.customer?.id ?? clienteSeleccionadoId.value;
+                clienteSnapshot.value = snapshotClienteActual();
+                toast("success", "Cliente actualizado.");
+            }
+
+            await avanzarAMascota();
+            return;
         }
 
-        usuario.value.email = cliente.value.email;
-        await cargarMascotasCliente();
-        step.value = 2;
+        const { data } = await axios.post(
+            route("recepcion.clientes.store"),
+            payloadCliente()
+        );
+        clienteId.value = data.customer?.id;
+        clienteSeleccionadoId.value = String(clienteId.value);
+        clienteUsuarioId.value = String(clienteId.value);
+        clientesSinUsuarioLista.value = [
+            data.customer,
+            ...clientesSinUsuarioLista.value.filter(
+                (c) => String(c.id) !== String(data.customer?.id)
+            ),
+        ];
+        toast("success", "Cliente registrado.");
+        await avanzarAMascota();
     } catch (e) {
         formErrors.value = e.response?.data?.errors ?? {};
-        toast("danger", "Revise los datos del cliente.");
+        const mensaje =
+            e.response?.data?.message
+            || Object.values(e.response?.data?.errors ?? {}).flat()[0]
+            || "Revise los datos del cliente.";
+        toast("danger", mensaje);
     } finally {
         loading.value = false;
     }
@@ -648,8 +714,7 @@ async function avanzarDesdePaso2SinCambios() {
                     <TextInput
                         v-model="clienteBusqueda"
                         class="w-full mt-1"
-                        placeholder="Nombre, apellido o CI..."
-                        @input="buscarClientes"
+                        placeholder="Nombre, apellido, CI o teléfono..."
                     />
                 </div>
                 <div>
@@ -662,14 +727,26 @@ async function avanzarDesdePaso2SinCambios() {
                             @change="cargarClienteSeleccionado"
                         >
                             <option value="" disabled>
-                                {{ isFetchingClientes ? "Cargando..." : "— Elija un cliente —" }}
+                                {{
+                                    isFetchingClientes
+                                        ? "Cargando..."
+                                        : clientesOpciones.length
+                                          ? "— Elija un cliente —"
+                                          : "— Sin resultados —"
+                                }}
                             </option>
                             <option v-for="c in clientesOpciones" :key="c.id" :value="String(c.id)">
-                                {{ c.full_name }} — CI {{ c.ci }}
+                                {{ etiquetaCliente(c) }}
                             </option>
                         </select>
                         <FwbSpinner v-if="isFetchingClientes" size="4" class="absolute right-2 top-2" />
                     </div>
+                    <p
+                        v-if="!isFetchingClientes && !clientesOpciones.length"
+                        class="mt-1 text-sm text-amber-700"
+                    >
+                        No hay clientes con ese criterio. Pruebe otro nombre, CI o teléfono.
+                    </p>
                 </div>
             </div>
 
@@ -748,10 +825,14 @@ async function avanzarDesdePaso2SinCambios() {
                 <FwbButton
                     class="w-full sm:w-auto"
                     color="green"
-                    :disabled="loading || (modoCliente === 'existente' && !clienteSeleccionadoId)"
+                    :disabled="loading || (modoCliente === 'existente' && (!clienteSeleccionadoId || !clienteListo))"
                     @click="guardarCliente"
                 >
-                    {{ modoCliente === "existente" ? "Guardar y continuar" : "Registrar y continuar" }}
+                    {{
+                        modoCliente === "existente"
+                            ? (clienteDatosModificados() ? "Guardar cambios y continuar" : "Continuar a mascota")
+                            : "Registrar y continuar"
+                    }}
                 </FwbButton>
             </div>
         </div>

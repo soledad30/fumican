@@ -79,7 +79,7 @@ class ConsultaMedicaService
         if ($destino === EstadoConsultaEnum::NO_ASISTIO && $consulta->fecha) {
             if (! PoliticaReserva::puedeMarcarNoAsistio($consulta)) {
                 throw new InvalidArgumentException(
-                    'Solo puede marcar «No asistió» cuando terminó el día de la cita sin que el paciente haya llegado.'
+                    'Solo puede marcar «No asistió» después de la hora de la cita más el tiempo de gracia, sin check-in.'
                 );
             }
         }
@@ -115,7 +115,7 @@ class ConsultaMedicaService
             ->where('estado', EstadoConsultaEnum::RESERVADA->value)
             ->whereNotNull('fecha')
             ->each(function (ConsultaMedica $consulta) use (&$actualizadas) {
-                if (! PoliticaReserva::diaCitaTerminado($consulta)) {
+                if (! PoliticaReserva::ventanaNoAsistioCumplida($consulta)) {
                     return;
                 }
 

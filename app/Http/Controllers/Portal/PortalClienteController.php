@@ -39,6 +39,8 @@ class PortalClienteController extends Controller
             ...$this->carnetService->resumenPortalCliente($cliente),
             'servicios' => $this->servicioService->getAllActivos(),
             'horarios' => $this->reservaService->horariosDisponibles(),
+            'deudas' => $this->reservaService->deudasCliente($cliente),
+            'compras' => $this->reservaService->comprasCliente($cliente),
         ]);
     }
 

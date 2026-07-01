@@ -3,6 +3,7 @@
 namespace App\Services\Auditoria;
 
 use App\Models\Auditoria\Bitacora;
+use App\Support\BitacoraDescripciones;
 use Illuminate\Support\Facades\Request;
 
 class BitacoraService
@@ -69,7 +70,9 @@ class BitacoraService
 
     public function buscar(array $filters = [], int $perPage = 30)
     {
-        $query = Bitacora::query()->orderByDesc('creado_en');
+        $query = Bitacora::query()
+            ->with('usuario:id,nombre,email')
+            ->orderByDesc('creado_en');
 
         if (! empty($filters['accion'])) {
             $query->where('accion', $filters['accion']);
@@ -84,7 +87,12 @@ class BitacoraService
             $query->where(function ($q) use ($term) {
                 $q->where('descripcion', 'like', "%{$term}%")
                     ->orWhere('ip', 'like', "%{$term}%")
-                    ->orWhere('accion', 'like', "%{$term}%");
+                    ->orWhere('accion', 'like', "%{$term}%")
+                    ->orWhere('modulo', 'like', "%{$term}%")
+                    ->orWhereHas('usuario', function ($uq) use ($term) {
+                        $uq->where('nombre', 'like', "%{$term}%")
+                            ->orWhere('email', 'like', "%{$term}%");
+                    });
             });
         }
 
@@ -96,7 +104,26 @@ class BitacoraService
             $query->whereDate('creado_en', '<=', $filters['fecha_hasta']);
         }
 
-        return $query->paginate($perPage)->withQueryString();
+        return $query
+            ->paginate($perPage)
+            ->through(fn (Bitacora $registro) => $this->formatearRegistro($registro))
+            ->withQueryString();
+    }
+
+    private function formatearRegistro(Bitacora $registro): array
+    {
+        return [
+            'id' => $registro->id,
+            'creado_en' => $registro->creado_en?->format('d/m/Y H:i:s'),
+            'accion' => $registro->accion,
+            'accion_label' => BitacoraDescripciones::accionLabel($registro->accion),
+            'modulo' => $registro->modulo,
+            'modulo_label' => BitacoraDescripciones::moduloLabel($registro->modulo),
+            'descripcion' => $registro->descripcion,
+            'usuario' => $registro->usuario?->nombre ?? 'Sistema',
+            'usuario_email' => $registro->usuario?->email,
+            'ip' => $registro->ip,
+        ];
     }
 
     public function getAccionesDisponibles(): array

@@ -141,11 +141,13 @@ class PagoController extends Controller
     public function pagarCuota(Request $request, int $cuotaId): JsonResponse
     {
         $data = $request->validate([
+            'monto' => 'nullable|numeric|min:0.01',
             'metodo_pago' => 'required|in:efectivo,tarjeta,transferencia,qr',
             'id_transaccion_externa' => 'nullable|string|max:100',
             'fecha_pago' => 'nullable|date',
         ], [
             'metodo_pago.required' => 'Seleccione el método de pago.',
+            'monto.min' => 'El monto debe ser mayor a cero.',
         ]);
 
         $cuota = $this->cuotaCreditoService->registrarPagoCuota($cuotaId, $data);

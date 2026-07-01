@@ -69,9 +69,13 @@ class UsuarioService
         if (empty($data['password'])) {
             $partes = preg_split('/\s+/', trim($data['nombre'] ?? 'Usuario'), 2);
             $data['password'] = ($partes[0] ?? 'User').substr($partes[1] ?? 'X', 0, 1).now()->year;
+            $data['password_generada'] = $data['password'];
         }
 
         $data['esta_activo'] = $data['esta_activo'] ?? true;
+
+        $passwordGenerada = $data['password_generada'] ?? null;
+        unset($data['password_generada']);
 
         $user = $this->repository->create($data);
 
@@ -89,6 +93,10 @@ class UsuarioService
                 ->update(['usuario_id' => $user->id]);
         }
 
+        if ($passwordGenerada) {
+            $user->setAttribute('password_generada', $passwordGenerada);
+        }
+
         return $user;
     }
 
@@ -104,6 +112,14 @@ class UsuarioService
             unset($data['first_name'], $data['last_name']);
         }
 
+        $perfilCampos = [];
+        foreach (['ci', 'telefono', 'fecha_nacimiento', 'direccion', 'especialidad'] as $campo) {
+            if (array_key_exists($campo, $data)) {
+                $perfilCampos[$campo] = $data[$campo];
+                unset($data[$campo]);
+            }
+        }
+
         if (empty($data['password'])) {
             unset($data['password']);
         }
@@ -114,7 +130,27 @@ class UsuarioService
 
         unset($data['cliente_id'], $data['veterinario_id'], $data['reactivar_usuario_id']);
 
-        return $this->repository->update($id, $data);
+        $this->repository->update($id, $data);
+
+        if ($perfilCampos) {
+            $clienteData = array_intersect_key(
+                $perfilCampos,
+                array_flip(['ci', 'telefono', 'fecha_nacimiento', 'direccion'])
+            );
+            if ($clienteData) {
+                Cliente::query()->where('usuario_id', $id)->update($clienteData);
+            }
+
+            $vetData = array_intersect_key(
+                $perfilCampos,
+                array_flip(['ci', 'telefono', 'especialidad'])
+            );
+            if ($vetData) {
+                Veterinario::query()->where('usuario_id', $id)->update($vetData);
+            }
+        }
+
+        return $this->getById($id);
     }
 
     public function delete($id)

@@ -44,6 +44,9 @@ const props = defineProps({
     filters: Object,
     atenderConsulta: { type: Object, default: null },
     cobrarConsulta: { type: Object, default: null },
+    minutosGracia: { type: Number, default: 20 },
+    horaCierre: { type: String, default: "19:00" },
+    horariosCita: { type: Array, default: () => [] },
 });
 
 const currentPage = ref(props.medicalConsultations.current_page || 1);
@@ -96,7 +99,23 @@ const reprogramarModo = ref("no_asistio");
 const reprogramarConsulta = ref(null);
 const reprogramarForm = ref({ fecha: "", hora: "09:00" });
 const reprogramarErrors = ref({});
-const horariosDisponibles = ["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00"];
+const horariosDisponibles = computed(() => {
+    if (props.horariosCita?.length) {
+        return props.horariosCita;
+    }
+    const slots = [];
+    for (let h = 9; h <= 17; h++) {
+        if (h === 13) continue;
+        for (const m of [0, 15, 30, 45]) {
+            if (h === 17 && m > 0) break;
+            slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+        }
+    }
+    return slots;
+});
+const alertasCitasMostradas = new Set();
+let alertaCitasInterval = null;
+const ALERTA_CITA_MINUTOS = 30;
 const registroLlegadaEmergencia = ref(false);
 const registroConsulta = ref(null);
 const registroForm = ref({
@@ -278,6 +297,61 @@ function esFechaPasada(consultation) {
     return esReservaVencida(consultation);
 }
 
+function normalizarHoraInput(hora) {
+    if (!hora) return "09:00";
+    const s = String(hora);
+    return s.length >= 5 ? s.slice(0, 5) : s;
+}
+
+function parseInicioCita(consultation) {
+    const fecha = normalizarFechaYmd(consultation.fecha);
+    if (!fecha) return null;
+    const hora = normalizarHoraInput(consultation.hora);
+    const reserva = new Date(`${fecha}T${hora}:00`);
+    return Number.isNaN(reserva.getTime()) ? null : reserva;
+}
+
+function verificarAlertasCitasProximas() {
+    const lista = props.medicalConsultations?.data ?? [];
+    const ahora = Date.now();
+
+    for (const c of lista) {
+        if (!["reservada", "en_espera", "en_atencion"].includes(c.estado)) continue;
+        const inicio = parseInicioCita(c);
+        if (!inicio) continue;
+
+        const diff = inicio.getTime() - ahora;
+        if (diff <= 0 || diff > ALERTA_CITA_MINUTOS * 60 * 1000) continue;
+
+        const key = `cita-${c.id}-${c.estado}`;
+        if (alertasCitasMostradas.has(key)) continue;
+
+        alertasCitasMostradas.add(key);
+        const minutos = Math.max(1, Math.ceil(diff / 60000));
+        const esConsulta = c.estado === "reservada";
+        toast(
+            "warning",
+            `Atención: ${esConsulta ? "consulta" : "revisión"} con ${c.pet_name || "paciente"} en ${minutos} min (${normalizarHoraInput(c.hora)}).`
+        );
+    }
+}
+
+function formatoFiltroFecha(valor) {
+    if (!valor) return "";
+    const partes = String(valor).slice(0, 10).split("-");
+    if (partes.length !== 3) return valor;
+    return `${partes[2]}/${partes[1]}/${partes[0].slice(-2)}`;
+}
+
+onMounted(() => {
+    verificarAlertasCitasProximas();
+    alertaCitasInterval = setInterval(verificarAlertasCitasProximas, 60000);
+});
+
+onUnmounted(() => {
+    if (alertaCitasInterval) clearInterval(alertaCitasInterval);
+});
+
 function esReservaVencida(consultation) {
     const fecha = normalizarFechaYmd(consultation.fecha);
     if (!fecha) return false;
@@ -382,7 +456,7 @@ async function ejecutarCheckIn(consultation, emergencia = false) {
 function abrirReprogramarModal(consultation, modo = "no_asistio") {
     reprogramarConsulta.value = consultation;
     reprogramarModo.value = modo;
-    reprogramarForm.value = { fecha: "", hora: horariosDisponibles[0] };
+    reprogramarForm.value = { fecha: "", hora: horariosDisponibles.value[0] || "09:00" };
     reprogramarErrors.value = {};
     isReprogramarModal.value = true;
 }
@@ -907,7 +981,7 @@ function openCreateModal() {
     form.value = {
         ...defaultFormState,
         fecha: hoy,
-        hora: horariosDisponibles[0],
+        hora: horariosDisponibles.value[0] || "09:00",
     };
     selectedPet.value = null;
     resumenClinico.value = null;
@@ -1169,8 +1243,22 @@ async function submitDelete() {
                     </FwbTableHeadCell>
                     <FwbTableHeadCell class="vet-th-cell vet-th-fecha">
                         <div class="vet-th-filter-stack">
-                            <input v-model="filters.date_from" type="date" class="vet-th-filter" title="Desde" />
-                            <input v-model="filters.date_to" type="date" class="vet-th-filter" title="Hasta" />
+                            <label class="vet-th-filter-row text-xs text-gray-500">
+                                De:
+                                <input v-model="filters.date_from" type="date" class="vet-th-filter" />
+                            </label>
+                            <label class="vet-th-filter-row text-xs text-gray-500">
+                                Hasta:
+                                <input v-model="filters.date_to" type="date" class="vet-th-filter" />
+                            </label>
+                            <p
+                                v-if="filters.date_from || filters.date_to"
+                                class="text-[10px] text-gray-500 leading-tight mt-0.5"
+                            >
+                                <span v-if="filters.date_from">De: {{ formatoFiltroFecha(filters.date_from) }}</span>
+                                <span v-if="filters.date_from && filters.date_to"> · </span>
+                                <span v-if="filters.date_to">Hasta: {{ formatoFiltroFecha(filters.date_to) }}</span>
+                            </p>
                         </div>
                         <span class="vet-th-label">Fecha</span>
                     </FwbTableHeadCell>
@@ -1753,12 +1841,13 @@ async function submitDelete() {
                         </div>
                         <div v-if="esEstadoAgenda">
                             <InputLabel value="Hora de la cita *" />
-                            <select
+                            <input
                                 v-model="form.hora"
+                                type="time"
+                                step="60"
                                 class="mt-1 w-full border rounded px-2 py-2 dark:bg-gray-700 dark:border-gray-600"
-                            >
-                                <option v-for="h in horariosDisponibles" :key="h" :value="h">{{ h }}</option>
-                            </select>
+                            />
+                            <p class="text-xs text-gray-500 mt-1">Formato 24 h (horas y minutos).</p>
                             <InputError :message="formErrors.hora?.[0]" />
                         </div>
                         <div>

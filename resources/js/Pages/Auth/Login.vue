@@ -79,6 +79,13 @@ const submit = () => {
         <InputError class="mt-2" :message="form.errors.password" />
       </div>
 
+      <div
+        v-if="form.errors.email && form.password"
+        class="p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200"
+      >
+        Contraseña incorrecta o el correo no está registrado.
+      </div>
+
       <div class="flex items-center justify-between">
         <FwbCheckbox v-model="form.remember" label="Recordarme" />
         <Link

@@ -21,13 +21,15 @@ import RolEnum from "@/Utils/Enums/RolEnum";
 
 const route = inject("route");
 
-import InputError from "@/Components/InputError.vue";
 import InputLabel from "@/Components/InputLabel.vue";
+import InputError from "@/Components/InputError.vue";
 import TextInput from "@/Components/TextInput.vue";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
+import { useFormErrors } from "@/Composables/useFormErrors";
 
 const props = defineProps({
     roles: Object,
+    rolesExistentes: { type: Array, default: () => [] },
     permissions: Array,
     filters: Object,
 });
@@ -63,22 +65,83 @@ const toastType = ref("success");
 const modalMode = ref("create");
 const isCreateOrEditModal = ref(false);
 const isViewModal = ref(false);
+const isDeleteModal = ref(false);
 const selectedRole = ref(null);
 const editingRoleId = ref(null);
 
 const defaultFormState = { id: null, name: "", permissions: [] };
 const form = ref({ ...defaultFormState });
-const formErrors = ref({});
+const { clearErrors, fromAxios, get, setErrors } = useFormErrors();
 const allPermissions = ref([]);
 
 const page = usePage();
 const { puede, esAdmin } = usePermisos();
 const canCreateRoles = computed(() => esAdmin.value || puede("crear roles"));
 const canEditRoles = computed(() => esAdmin.value || puede("editar roles"));
+const canDeleteRoles = computed(() => esAdmin.value || puede("eliminar roles"));
 const canViewRoles = true;
-const esNombreRolProtegido = computed(() => {
-    const nombre = selectedRole.value?.name ?? selectedRole.value?.nombre;
+
+function normalizarNombreRol(nombre) {
+    return (nombre ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ");
+}
+
+function nombreRol(role) {
+    return role?.name ?? role?.nombre ?? "";
+}
+
+function esRolProtegido(role) {
+    const nombre = normalizarNombreRol(nombreRol(role));
     return nombre === RolEnum.PROPIETARIO || nombre === RolEnum.ADMINISTRADOR;
+}
+
+function canDeleteRole(role) {
+    return canDeleteRoles.value && !esRolProtegido(role);
+}
+
+function resolveRoleId() {
+    const id = editingRoleId.value ?? form.value.id ?? selectedRole.value?.id;
+    return id != null && id !== "" ? Number(id) : null;
+}
+
+const esNombreRolProtegido = computed(() => esRolProtegido(selectedRole.value));
+
+const catalogoRoles = computed(() => {
+    if (props.rolesExistentes?.length) {
+        return props.rolesExistentes;
+    }
+    return props.roles?.data ?? [];
+});
+
+const rolDuplicado = computed(() => {
+    const normalizado = normalizarNombreRol(form.value.name);
+    if (!normalizado) return null;
+
+    const editingId = resolveRoleId();
+    return (
+        catalogoRoles.value.find((role) => {
+            if (editingId && Number(role.id) === Number(editingId)) return false;
+            return normalizarNombreRol(nombreRol(role)) === normalizado;
+        }) ?? null
+    );
+});
+
+const rolesSimilares = computed(() => {
+    const normalizado = normalizarNombreRol(form.value.name);
+    if (!normalizado || normalizado.length < 2 || rolDuplicado.value) return [];
+
+    const editingId = resolveRoleId();
+
+    return catalogoRoles.value.filter((role) => {
+        if (editingId && Number(role.id) === Number(editingId)) return false;
+        const otro = normalizarNombreRol(nombreRol(role));
+        if (!otro || otro === normalizado) return false;
+        return otro.includes(normalizado) || normalizado.includes(otro);
+    });
 });
 
 function rolePermissions(role) {
@@ -96,6 +159,8 @@ const GRUPOS_PERMISOS = [
     { titulo: "Usuarios y roles", prefijos: ["listar_usuarios", "crear_usuarios", "editar_usuarios", "ver_usuarios", "gestionar_usuarios", "listar_roles", "crear_roles", "editar_roles", "eliminar_roles", "ver_roles"] },
     { titulo: "Clientes", prefijos: ["listar_clientes", "crear_clientes", "editar_clientes", "eliminar_clientes", "ver_clientes"] },
     { titulo: "Mascotas", prefijos: ["listar_mascotas", "crear_mascotas", "editar_mascotas", "eliminar_mascotas", "ver_mascotas", "gestionar_mascotas"] },
+    { titulo: "Especies", prefijos: ["listar_especies", "crear_especies", "editar_especies", "eliminar_especies", "ver_especies"] },
+    { titulo: "Razas", prefijos: ["listar_razas", "crear_razas", "editar_razas", "eliminar_razas", "ver_razas"] },
     { titulo: "Veterinarios", prefijos: ["listar_veterinarios", "crear_veterinarios", "editar_veterinarios", "eliminar_veterinarios", "ver_veterinarios", "gestionar_veterinarios"] },
     { titulo: "Consultas", prefijos: ["listar_consultas", "crear_consultas", "editar_consultas", "eliminar_consultas", "ver_consultas", "reservar_citas", "gestionar_consultas"] },
     { titulo: "Historial / vacunas", prefijos: ["listar_historial", "crear_historial", "editar_historial", "eliminar_historial", "ver_historial", "gestionar_historial"] },
@@ -175,7 +240,7 @@ function openCreateModal() {
     editingRoleId.value = null;
     form.value = { ...defaultFormState };
     setupPermissions();
-    formErrors.value = {};
+    clearErrors();
     isCreateOrEditModal.value = true;
 }
 
@@ -189,7 +254,7 @@ function openEditModal(role) {
         name: role.name ?? role.nombre ?? "",
     };
     setupPermissions(rolePermissions(role));
-    formErrors.value = {};
+    clearErrors();
     isCreateOrEditModal.value = true;
 }
 
@@ -203,12 +268,13 @@ function openViewModal(role) {
 function closeAllModals() {
     isCreateOrEditModal.value = false;
     isViewModal.value = false;
+    isDeleteModal.value = false;
     editingRoleId.value = null;
 }
 
-function resolveRoleId() {
-    const id = editingRoleId.value ?? form.value.id ?? selectedRole.value?.id;
-    return id != null && id !== "" ? Number(id) : null;
+function openDeleteModal(role) {
+    selectedRole.value = role;
+    isDeleteModal.value = true;
 }
 
 function rolUpdateUrl(id) {
@@ -216,8 +282,18 @@ function rolUpdateUrl(id) {
 }
 
 async function submitForm() {
+    if (rolDuplicado.value) {
+        setErrors({
+            name: [
+                `Ya existe un rol equivalente: «${formatRol(nombreRol(rolDuplicado.value))}».`,
+            ],
+        });
+        displayToast("danger", "Corrige el nombre del rol antes de guardar.");
+        return;
+    }
+
     loading.value = true;
-    formErrors.value = {};
+    clearErrors();
 
     const payload = {
         name: form.value.name,
@@ -243,7 +319,7 @@ async function submitForm() {
         router.reload({ only: ["roles"] });
     } catch (e) {
         if (e.response?.status === 422) {
-            formErrors.value = e.response.data.errors;
+            fromAxios(e);
             displayToast("danger", "Por favor, corrige los errores.");
         } else {
             displayToast(
@@ -254,6 +330,29 @@ async function submitForm() {
                         : "Ocurrió un error inesperado.")
             );
         }
+    } finally {
+        loading.value = false;
+    }
+}
+
+async function submitDelete() {
+    const id = selectedRole.value?.id;
+    if (!id) {
+        displayToast("danger", "No se pudo identificar el rol a eliminar.");
+        return;
+    }
+
+    loading.value = true;
+    try {
+        await axios.delete(route("roles.destroy", { id }));
+        displayToast("success", "Rol eliminado correctamente.");
+        closeAllModals();
+        router.reload({ only: ["roles", "rolesExistentes"] });
+    } catch (e) {
+        displayToast(
+            "danger",
+            e.response?.data?.message || "Error al eliminar el rol."
+        );
     } finally {
         loading.value = false;
     }
@@ -326,12 +425,14 @@ async function submitForm() {
                         <FwbTableCell class="space-x-2 whitespace-nowrap">
                             <TableActionButtons
                                 :can-view="canViewRoles"
-                                :can-edit="canEditRoles"
-                                :can-delete="false"
+                                :can-edit="canEditRoles && !esRolProtegido(role)"
+                                :can-delete="canDeleteRole(role)"
                                 view-title="Ver permisos"
                                 edit-title="Editar rol"
+                                delete-title="Eliminar rol"
                                 @view="openViewModal(role)"
                                 @edit="openEditModal(role)"
+                                @delete="openDeleteModal(role)"
                             />
                         </FwbTableCell>
                     </FwbTableRow>
@@ -373,7 +474,15 @@ async function submitForm() {
                             class="mt-1 w-full"
                             :disabled="modalMode === 'view' || esNombreRolProtegido"
                         />
-                        <InputError :message="formErrors.name?.[0]" />
+                        <InputError :message="get('name')" />
+                        <InputError
+                            v-if="modalMode !== 'view' && rolDuplicado"
+                            :message="`Ya existe el rol ${formatRol(nombreRol(rolDuplicado))}. No se puede crear otro con mayúsculas, tildes o espacios distintos.`"
+                        />
+                        <InputError
+                            v-else-if="modalMode !== 'view' && rolesSimilares.length"
+                            :message="`Roles parecidos ya registrados: ${rolesSimilares.map((role) => formatRol(nombreRol(role))).join(', ')}.`"
+                        />
                     </div>
                     <hr class="vet-modal-divider" />
                     <div>
@@ -404,7 +513,7 @@ async function submitForm() {
                                 </div>
                             </div>
                         </div>
-                        <InputError :message="formErrors.permissions?.[0]" />
+                        <InputError :message="get('permissions')" />
                     </div>
                 </form>
             </template>
@@ -418,8 +527,30 @@ async function submitForm() {
                         @click="submitForm"
                         color="green"
                         :loading="loading"
+                        :disabled="!!rolDuplicado"
                     >
                         Guardar
+                    </FwbButton>
+                </div>
+            </template>
+        </FwbModal>
+
+        <FwbModal v-if="isDeleteModal" @close="closeAllModals">
+            <template #header>
+                <h3 class="text-xl font-semibold vet-page-title">Eliminar rol</h3>
+            </template>
+            <template #body>
+                <p class="text-sm text-gray-700 dark:text-gray-300">
+                    ¿Eliminar el rol
+                    <strong>{{ formatRol(nombreRol(selectedRole)) }}</strong>?
+                    Esta acción no se puede deshacer.
+                </p>
+            </template>
+            <template #footer>
+                <div class="flex justify-end w-full gap-2">
+                    <FwbButton color="alternative" @click="closeAllModals">Cancelar</FwbButton>
+                    <FwbButton color="red" :loading="loading" @click="submitDelete">
+                        Eliminar
                     </FwbButton>
                 </div>
             </template>

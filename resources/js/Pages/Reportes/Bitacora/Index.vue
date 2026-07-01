@@ -45,9 +45,11 @@ function resetFilters() {
 
 function badgeColor(accion) {
     if (accion?.includes("fallido")) return "red";
-    if (accion?.includes("exitoso") || accion === "crear") return "green";
-    if (accion === "eliminar") return "yellow";
-    return "blue";
+    if (accion === "login_exitoso" || accion === "crear") return "green";
+    if (accion === "eliminar" || accion === "baja") return "yellow";
+    if (accion === "acceso" || accion === "navegar") return "indigo";
+    if (accion === "editar" || accion === "cambiar_estado") return "blue";
+    return "dark";
 }
 </script>
 
@@ -91,7 +93,7 @@ function badgeColor(accion) {
                 </div>
                 <div class="md:col-span-2">
                     <InputLabel value="Buscar" />
-                    <TextInput v-model="filters.search_term" placeholder="Descripción, IP, acción..." class="w-full" />
+                    <TextInput v-model="filters.search_term" placeholder="Usuario, descripción, IP..." class="w-full" />
                 </div>
                 <div class="md:col-span-6 flex gap-2">
                     <FwbButton color="green" type="submit">Filtrar</FwbButton>
@@ -102,6 +104,7 @@ function badgeColor(accion) {
             <FwbTable>
                 <FwbTableHead>
                     <FwbTableHeadCell>Fecha</FwbTableHeadCell>
+                    <FwbTableHeadCell>Usuario</FwbTableHeadCell>
                     <FwbTableHeadCell>Acción</FwbTableHeadCell>
                     <FwbTableHeadCell>Módulo</FwbTableHeadCell>
                     <FwbTableHeadCell>Descripción</FwbTableHeadCell>
@@ -110,15 +113,21 @@ function badgeColor(accion) {
                 <FwbTableBody>
                     <FwbTableRow v-for="r in registros.data" :key="r.id">
                         <FwbTableCell class="text-sm whitespace-nowrap">{{ r.creado_en }}</FwbTableCell>
-                        <FwbTableCell>
-                            <FwbBadge :color="badgeColor(r.accion)">{{ r.accion }}</FwbBadge>
+                        <FwbTableCell class="text-sm">
+                            <span class="font-medium">{{ r.usuario }}</span>
+                            <span v-if="r.usuario_email" class="block text-xs text-gray-500 truncate max-w-[10rem]" :title="r.usuario_email">
+                                {{ r.usuario_email }}
+                            </span>
                         </FwbTableCell>
-                        <FwbTableCell>{{ r.modulo }}</FwbTableCell>
-                        <FwbTableCell class="max-w-xs truncate" :title="r.descripcion">{{ r.descripcion }}</FwbTableCell>
+                        <FwbTableCell>
+                            <FwbBadge :color="badgeColor(r.accion)">{{ r.accion_label || r.accion }}</FwbBadge>
+                        </FwbTableCell>
+                        <FwbTableCell>{{ r.modulo_label || r.modulo }}</FwbTableCell>
+                        <FwbTableCell class="max-w-md" :title="r.descripcion">{{ r.descripcion }}</FwbTableCell>
                         <FwbTableCell>{{ r.ip }}</FwbTableCell>
                     </FwbTableRow>
                     <FwbTableRow v-if="!registros.data?.length">
-                        <FwbTableCell colspan="5" class="text-center text-gray-500 py-6">
+                        <FwbTableCell colspan="6" class="text-center text-gray-500 py-6">
                             No hay registros con los filtros aplicados.
                         </FwbTableCell>
                     </FwbTableRow>

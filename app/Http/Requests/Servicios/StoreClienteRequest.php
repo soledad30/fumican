@@ -34,6 +34,23 @@ class StoreClienteRequest extends FormRequest
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+
+        if ($this->has('gender') && $this->gender !== null && $this->gender !== '') {
+            $merge['gender'] = (int) $this->gender;
+        }
+
+        if ($this->birthdate === '') {
+            $merge['birthdate'] = null;
+        }
+
+        if ($merge !== []) {
+            $this->merge($merge);
+        }
+    }
+
     /**
      * Get the error messages for the defined validation rules.
      *

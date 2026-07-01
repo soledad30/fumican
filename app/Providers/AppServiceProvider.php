@@ -6,6 +6,7 @@ use App\Listeners\RegistrarEventosAutenticacion;
 use App\Models\Usuario;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Event;
 use App\Support\InstalarEsquemaSql;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        App::setLocale(config('app.locale', 'es'));
+
         if ($appUrl = config('app.url')) {
             URL::forceRootUrl($appUrl);
         }

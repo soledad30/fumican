@@ -18,6 +18,7 @@ import {
 import { computed, ref, watch } from "vue";
 import axios from "axios";
 import { usePermisos } from "@/Composables/usePermisos";
+import { useFormErrors } from "@/Composables/useFormErrors";
 
 // Components
 import InputError from "@/Components/InputError.vue";
@@ -75,7 +76,7 @@ const defaultFormState = {
     address: "",
 };
 const form = ref({ ...defaultFormState });
-const formErrors = ref({});
+const { clearErrors, fromAxios, get } = useFormErrors();
 
 // --- HELPERS & PERMISSIONS ---
 const { puede } = usePermisos();
@@ -96,7 +97,7 @@ function displayToast(type, message) {
 function openCreateModal() {
     modalMode.value = "create";
     form.value = { ...defaultFormState };
-    formErrors.value = {};
+    clearErrors();
     isCreateOrEditModal.value = true;
 }
 
@@ -108,7 +109,7 @@ function openEditModal(customer) {
         ...customer,
         gender: String(customer.gender ?? "0"),
     };
-    formErrors.value = {};
+    clearErrors();
     isCreateOrEditModal.value = true;
 }
 
@@ -131,7 +132,7 @@ function closeAllModals() {
 // --- CRUD ---
 async function submitForm() {
     loading.value = true;
-    formErrors.value = {};
+    clearErrors();
     try {
         if (modalMode.value === "edit") {
             await axios.put(
@@ -147,7 +148,7 @@ async function submitForm() {
         router.reload({ only: ["customers"] });
     } catch (e) {
         if (e.response?.status === 422) {
-            formErrors.value = e.response.data.errors;
+            fromAxios(e);
             displayToast(
                 "danger",
                 "Por favor, corrige los errores del formulario."
@@ -369,7 +370,7 @@ async function submitDelete() {
                                 v-model="form.first_name"
                                 class="mt-1 w-full"
                             /><InputError
-                                :message="formErrors.first_name?.[0]"
+                                :message="get('first_name')"
                             />
                         </div>
                         <div>
@@ -377,21 +378,21 @@ async function submitDelete() {
                                 v-model="form.last_name"
                                 class="mt-1 w-full"
                             /><InputError
-                                :message="formErrors.last_name?.[0]"
+                                :message="get('last_name')"
                             />
                         </div>
                         <div>
                             <InputLabel value="CI" /><TextInput
                                 v-model="form.ci"
                                 class="mt-1 w-full"
-                            /><InputError :message="formErrors.ci?.[0]" />
+                            /><InputError :message="get('ci')" />
                         </div>
                         <div>
                             <InputLabel value="Teléfono" /><TextInput
                                 v-model="form.phone_number"
                                 class="mt-1 w-full"
                             /><InputError
-                                :message="formErrors.phone_number?.[0]"
+                                :message="get('phone_number')"
                             />
                         </div>
                         <div>
@@ -411,7 +412,7 @@ async function submitDelete() {
                                     label="Otro"
                                 />
                             </div>
-                            <InputError :message="formErrors.gender?.[0]" />
+                            <InputError :message="get('gender')" />
                         </div>
                         <div>
                             <InputLabel value="Fecha de Nacimiento" /><TextInput
@@ -419,7 +420,7 @@ async function submitDelete() {
                                 type="date"
                                 class="mt-1 w-full"
                             /><InputError
-                                :message="formErrors.birthdate?.[0]"
+                                :message="get('birthdate')"
                             />
                         </div>
                         <div class="md:col-span-2">
@@ -429,7 +430,7 @@ async function submitDelete() {
                                 class="mt-1 w-full"
                                 placeholder="Calle, zona, ciudad..."
                             /><InputError
-                                :message="formErrors.address?.[0]"
+                                :message="get('address')"
                             />
                         </div>
                     </div>

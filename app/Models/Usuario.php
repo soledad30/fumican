@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Models\Usuarios\Rol;
 use App\Models\Ventas\NotaVenta;
+use App\Models\Servicios\Cliente;
 use App\Models\Servicios\ConsultaMedica;
+use App\Models\Servicios\Veterinario;
 use App\Models\Auditoria\Bitacora;
 use App\Models\Auditoria\CuotaCredito;
 use App\Models\Ventas\MovimientoInventario;
@@ -16,6 +18,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -74,6 +77,16 @@ class Usuario extends Authenticatable
     public function rol(): BelongsTo
     {
         return $this->belongsTo(Rol::class, 'rol_id');
+    }
+
+    public function clientePerfil(): HasOne
+    {
+        return $this->hasOne(Cliente::class, 'usuario_id');
+    }
+
+    public function veterinarioPerfil(): HasOne
+    {
+        return $this->hasOne(Veterinario::class, 'usuario_id');
     }
 
     public function getRoleAttribute()

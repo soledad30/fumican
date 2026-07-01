@@ -131,11 +131,11 @@ Route::middleware([
             Route::get('consulta/{consultaId}', [TratamientoController::class, 'porConsulta'])->middleware('permiso:listar_consultas')->name('por-consulta');
         });
 
-        Route::get('especies/buscar', [EspecieController::class, 'search'])->middleware('permiso:listar_mascotas')->name('especies.search');
-        Route::resource('especies', EspecieController::class)->middleware('permiso:editar_mascotas')->names('especies');
+        Route::get('especies/buscar', [EspecieController::class, 'search'])->middleware('permiso:listar_especies')->name('especies.search');
+        Route::resource('especies', EspecieController::class)->middleware('permiso:editar_especies')->names('especies');
 
-        Route::get('razas/buscar', [RazaController::class, 'search'])->middleware('permiso:listar_mascotas')->name('razas.search');
-        Route::resource('razas', RazaController::class)->middleware('permiso:editar_mascotas')->names('razas');
+        Route::get('razas/buscar', [RazaController::class, 'search'])->middleware('permiso:listar_razas')->name('razas.search');
+        Route::resource('razas', RazaController::class)->middleware('permiso:editar_razas')->names('razas');
 
         Route::prefix('veterinarios')->as('veterinarios.')->group(function () {
             Route::get('/', [VeterinarioController::class, 'index'])->middleware('permiso:listar_veterinarios')->name('index');

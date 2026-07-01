@@ -33,6 +33,18 @@ return [
     'ver_mascotas' => 'Ver mascotas',
     'gestionar_mascotas' => 'Gestionar mascotas (completo)',
 
+    'listar_especies' => 'Listar especies',
+    'crear_especies' => 'Crear especies',
+    'editar_especies' => 'Editar especies',
+    'eliminar_especies' => 'Eliminar especies',
+    'ver_especies' => 'Ver especies',
+
+    'listar_razas' => 'Listar razas',
+    'crear_razas' => 'Crear razas',
+    'editar_razas' => 'Editar razas',
+    'eliminar_razas' => 'Eliminar razas',
+    'ver_razas' => 'Ver razas',
+
     'listar_veterinarios' => 'Listar veterinarios',
     'crear_veterinarios' => 'Crear veterinarios',
     'editar_veterinarios' => 'Editar veterinarios',

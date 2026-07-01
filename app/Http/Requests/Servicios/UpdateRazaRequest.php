@@ -12,7 +12,7 @@ class UpdateRazaRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->usuarioPuede(PermisoEnum::EDITAR_MASCOTAS);
+        return $this->usuarioPuede(PermisoEnum::EDITAR_RAZAS);
     }
 
     protected function prepareForValidation(): void

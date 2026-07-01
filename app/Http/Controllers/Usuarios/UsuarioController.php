@@ -8,6 +8,7 @@ use App\Http\Requests\Usuarios\UpdateUsuarioRequest;
 use App\Models\Usuario;
 use App\Services\Usuarios\RolService;
 use App\Services\Usuarios\UsuarioService;
+use App\Traits\RegistraBitacora;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,8 @@ use Illuminate\Database\QueryException;
 
 class UsuarioController extends Controller
 {
+    use RegistraBitacora;
+
     public function __construct(
         protected UsuarioService $service,
         protected RolService $rolService
@@ -35,7 +38,7 @@ class UsuarioController extends Controller
 
     public function search(Request $request): InertiaResponse
     {
-        $filters = $request->only('search_term');
+        $filters = $request->only('search_term', 'role_id');
 
         return Inertia::render('Usuarios/Index', [
             'users' => $this->service->search($filters),
@@ -55,8 +58,16 @@ class UsuarioController extends Controller
                 unset($data['role_id']);
             }
             $user = $this->service->create($data);
+            $this->registrarBitacora('crear', 'usuarios', "Usuario creado: {$user->nombre} ({$user->email})", null, $user->toArray());
             DB::commit();
-            return response()->json(['message' => 'Usuario creado correctamente.'], 201);
+
+            $respuesta = ['message' => 'Usuario creado correctamente.'];
+            if ($user->password_generada ?? null) {
+                $respuesta['password_generada'] = $user->password_generada;
+                $respuesta['message'] .= ' Contraseña temporal: '.$user->password_generada;
+            }
+
+            return response()->json($respuesta, 201);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Error al crear el usuario: ' . $e->getMessage()], 500);
@@ -75,6 +86,7 @@ class UsuarioController extends Controller
                 unset($data['role_id']);
             }
             $this->service->update($user->id, $data);
+            $this->registrarBitacora('editar', 'usuarios', "Usuario actualizado: {$user->nombre} ({$user->email})", $user->toArray(), $data);
             DB::commit();
             return response()->json(['message' => 'Usuario actualizado correctamente.']);
         } catch (\Exception $e) {
@@ -93,6 +105,7 @@ class UsuarioController extends Controller
         DB::beginTransaction();
         try {
             $user->update(['esta_activo' => false]);
+            $this->registrarBitacora('baja', 'usuarios', "Usuario dado de baja: {$user->nombre} ({$user->email})", $user->toArray());
             DB::commit();
 
             return response()->json(['message' => 'Usuario dado de baja correctamente.']);

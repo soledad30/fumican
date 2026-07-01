@@ -42,7 +42,9 @@ class ClienteRepository
             $query->where(function ($q) use ($term) {
                 $q->where('nombre', 'like', "%{$term}%")
                     ->orWhere('apellido', 'like', "%{$term}%")
-                    ->orWhere('ci', 'like', "%{$term}%");
+                    ->orWhere('ci', 'like', "%{$term}%")
+                    ->orWhere('telefono', 'like', "%{$term}%")
+                    ->orWhere('email', 'like', "%{$term}%");
             });
         }
 

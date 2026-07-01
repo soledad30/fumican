@@ -39,4 +39,21 @@ class UpdateClienteRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:255'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+
+        if ($this->has('gender') && $this->gender !== null && $this->gender !== '') {
+            $merge['gender'] = (int) $this->gender;
+        }
+
+        if ($this->birthdate === '') {
+            $merge['birthdate'] = null;
+        }
+
+        if ($merge !== []) {
+            $this->merge($merge);
+        }
+    }
 }

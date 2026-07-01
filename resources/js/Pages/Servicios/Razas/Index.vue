@@ -9,11 +9,14 @@ import {
     FwbModal, FwbToast,
 } from "flowbite-vue";
 import InputLabel from "@/Components/InputLabel.vue";
+import InputError from "@/Components/InputError.vue";
 import TextInput from "@/Components/TextInput.vue";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
 import { usePermisos } from "@/Composables/usePermisos";
+import { useFormErrors } from "@/Composables/useFormErrors";
 
 const props = defineProps({ razas: Object, especies: Array });
+const { clearErrors, fromAxios, get } = useFormErrors();
 const currentPage = ref(props.razas.current_page || 1);
 const showToast = ref(false);
 const toastMsg = ref("");
@@ -25,8 +28,8 @@ const selected = ref(null);
 const form = ref({ nombre: "", especie_id: "" });
 
 const { puede } = usePermisos();
-const canCreate = computed(() => puede("crear mascotas"));
-const canEdit = computed(() => puede("editar mascotas"));
+const canCreate = computed(() => puede("crear razas"));
+const canEdit = computed(() => puede("editar razas"));
 
 watch(currentPage, (page) => {
     router.get(route("razas.index"), { page }, { preserveState: true });
@@ -42,6 +45,7 @@ function toast(type, msg) {
 function openCreate() {
     selected.value = null;
     form.value = { nombre: "", especie_id: props.especies[0]?.id ?? "" };
+    clearErrors();
     isModal.value = true;
 }
 
@@ -51,6 +55,7 @@ function openEdit(r) {
         nombre: r.nombre ?? r.name,
         especie_id: r.especie_id ?? r.specie_id ?? r.especie?.id,
     };
+    clearErrors();
     isModal.value = true;
 }
 
@@ -61,6 +66,7 @@ function openDelete(r) {
 
 async function submit() {
     loading.value = true;
+    clearErrors();
     try {
         const url = selected.value
             ? route("razas.update", selected.value.id)
@@ -71,7 +77,7 @@ async function submit() {
         isModal.value = false;
         router.reload();
     } catch (e) {
-        toast("danger", e.response?.data?.message || "Error al guardar");
+        toast("danger", fromAxios(e) || "Error al guardar");
     } finally {
         loading.value = false;
     }
@@ -140,8 +146,13 @@ async function confirmDelete() {
                                 {{ e.nombre ?? e.name }}
                             </option>
                         </select>
+                        <InputError :message="get('especie_id')" />
                     </div>
-                    <div><InputLabel value="Nombre" /><TextInput v-model="form.nombre" class="w-full" /></div>
+                    <div>
+                        <InputLabel value="Nombre" />
+                        <TextInput v-model="form.nombre" class="w-full" />
+                        <InputError :message="get('nombre')" />
+                    </div>
                 </div>
             </template>
             <template #footer>

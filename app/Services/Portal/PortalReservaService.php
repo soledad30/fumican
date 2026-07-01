@@ -7,6 +7,9 @@ use App\Models\Servicios\Cliente;
 use App\Models\Servicios\ConsultaMedica;
 use App\Models\Servicios\Mascota;
 use App\Models\Servicios\Servicio;
+use App\Models\Ventas\NotaVenta;
+use App\Support\ConsultaSaldo;
+use App\Support\NotaVentaSaldo;
 use Illuminate\Validation\ValidationException;
 
 class PortalReservaService
@@ -51,5 +54,56 @@ class PortalReservaService
             'usuario_id' => null,
             'servicio_id' => $servicio->id,
         ]);
+    }
+
+    public function deudasCliente(Cliente $cliente): array
+    {
+        $mascotaIds = $cliente->mascotas()->pluck('id');
+
+        $consultas = ConsultaMedica::query()
+            ->with(['servicio:id,nombre', 'mascota:id,nombre'])
+            ->whereIn('mascota_id', $mascotaIds)
+            ->get()
+            ->filter(fn (ConsultaMedica $c) => ConsultaSaldo::saldoPendiente($c) > 0.009)
+            ->map(fn (ConsultaMedica $c) => [
+                'tipo' => 'consulta',
+                'id' => $c->id,
+                'descripcion' => ($c->servicio?->nombre ?? 'Consulta').' — '.($c->mascota?->nombre ?? 'Mascota'),
+                'saldo' => ConsultaSaldo::saldoPendiente($c),
+                'fecha' => $c->fecha,
+            ])
+            ->values();
+
+        $notas = NotaVenta::query()
+            ->with('pagos')
+            ->where('cliente_id', $cliente->id)
+            ->get()
+            ->filter(fn (NotaVenta $n) => NotaVentaSaldo::saldoPendiente($n) > 0.009)
+            ->map(fn (NotaVenta $n) => [
+                'tipo' => 'nota',
+                'id' => $n->id,
+                'descripcion' => 'Nota de venta #'.$n->id,
+                'saldo' => NotaVentaSaldo::saldoPendiente($n),
+                'fecha' => $n->fecha_venta,
+            ])
+            ->values();
+
+        return $consultas->concat($notas)->sortByDesc('fecha')->values()->all();
+    }
+
+    public function comprasCliente(Cliente $cliente): array
+    {
+        return NotaVenta::query()
+            ->where('cliente_id', $cliente->id)
+            ->orderByDesc('fecha_venta')
+            ->limit(20)
+            ->get(['id', 'fecha_venta', 'monto_total'])
+            ->map(fn (NotaVenta $n) => [
+                'id' => $n->id,
+                'fecha' => $n->fecha_venta,
+                'total' => (float) ($n->monto_total ?? 0),
+                'saldo' => NotaVentaSaldo::saldoPendiente($n->loadMissing('pagos')),
+            ])
+            ->all();
     }
 }

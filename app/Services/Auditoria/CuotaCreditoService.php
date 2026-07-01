@@ -5,6 +5,7 @@ namespace App\Services\Auditoria;
 use App\Models\Auditoria\CuotaCredito;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 
 class CuotaCreditoService
 {
@@ -77,11 +78,15 @@ class CuotaCreditoService
             ->get()
             ->groupBy('pago_id')
             ->map(function ($grupo, $pagoId) {
+                $pendientes = $grupo->where('estado', 'pendiente');
+
                 return [
                     'id' => (int) $pagoId,
                     'pago_id' => (int) $pagoId,
                     'monto_total' => (float) $grupo->sum('monto'),
+                    'saldo_pendiente' => (float) $pendientes->sum('monto'),
                     'num_cuotas' => $grupo->count(),
+                    'cuotas_pendientes' => $pendientes->count(),
                     'nota_venta_id' => $grupo->first()->pago?->nota_venta_id,
                     'estado' => 'activo',
                     'cuotas' => $grupo->values(),
@@ -93,13 +98,42 @@ class CuotaCreditoService
     public function registrarPagoCuota(int $cuotaId, array $data): CuotaCredito
     {
         $cuota = CuotaCredito::findOrFail($cuotaId);
-        $cuota->update([
-            'fecha_pago' => $data['fecha_pago'] ?? now(),
-            'estado' => 'pagada',
-            'metodo_pago' => $data['metodo_pago'] ?? null,
-            'id_transaccion_externa' => $data['id_transaccion_externa'] ?? null,
-        ]);
 
-        return $cuota;
+        if ($cuota->estado !== 'pendiente') {
+            throw new InvalidArgumentException('Esta cuota ya fue pagada.');
+        }
+
+        $montoCuota = round((float) $cuota->monto, 2);
+        $montoPagado = isset($data['monto'])
+            ? round((float) $data['monto'], 2)
+            : $montoCuota;
+
+        if ($montoPagado <= 0) {
+            throw new InvalidArgumentException('Indique un monto válido para el pago.');
+        }
+
+        if ($montoPagado > $montoCuota + 0.01) {
+            throw new InvalidArgumentException('El monto no puede superar el saldo de la cuota (Bs. '.number_format($montoCuota, 2).').');
+        }
+
+        $fechaPago = $data['fecha_pago'] ?? now();
+        $metodo = $data['metodo_pago'] ?? null;
+        $transaccion = $data['id_transaccion_externa'] ?? null;
+
+        if ($montoPagado >= $montoCuota - 0.01) {
+            $cuota->update([
+                'fecha_pago' => $fechaPago,
+                'estado' => 'pagada',
+                'metodo_pago' => $metodo,
+                'id_transaccion_externa' => $transaccion,
+            ]);
+
+            return $cuota->fresh();
+        }
+
+        $restante = round($montoCuota - $montoPagado, 2);
+        $cuota->update(['monto' => $restante]);
+
+        return $cuota->fresh();
     }
 }

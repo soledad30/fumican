@@ -43,6 +43,9 @@ class ConsultaMedicaController extends Controller
             'metodosPago' => MetodoPagoEnum::labels(),
             'tiposPago' => TipoPagoEnum::labels(),
             'filters' => $filters,
+            'minutosGracia' => config('reservas.minutos_gracia_no_asistio', 20),
+            'horaCierre' => config('reservas.hora_cierre_clinica', '19:00'),
+            'horariosCita' => config('reservas.horarios', []),
         ];
     }
 

@@ -49,7 +49,7 @@ const form = ref({
     id_transaccion_externa: "", fecha_pago: "", num_cuotas: 3,
 });
 const isCuotaModal = ref(false);
-const cuotaForm = ref({ metodo_pago: "efectivo", id_transaccion_externa: "", fecha_pago: "" });
+const cuotaForm = ref({ monto: 0, metodo_pago: "efectivo", id_transaccion_externa: "", fecha_pago: "" });
 const selectedCuota = ref(null);
 const pagoQrImage = ref("");
 const pagoQrTransaccion = ref("");
@@ -97,6 +97,7 @@ const {
     sumaPlan,
     diferencia,
     planValido,
+    saldosPorFila,
     maxFechaVencimiento,
     payloadCuotasPlan,
 } = usePlanCredito(() => saldoOrigen(origenSeleccionado.value));
@@ -468,6 +469,7 @@ async function confirmDelete() {
 function openPagarCuota(cuota) {
     selectedCuota.value = cuota;
     cuotaForm.value = {
+        monto: Number(cuota.monto) || 0,
         metodo_pago: "efectivo",
         id_transaccion_externa: "",
         fecha_pago: new Date().toISOString().slice(0, 16),
@@ -687,6 +689,7 @@ async function submitCuota() {
                                         <th class="px-3 py-2 text-left">Pago</th>
                                         <th class="px-3 py-2 text-left">Monto (Bs.)</th>
                                         <th class="px-3 py-2 text-left">Fecha</th>
+                                        <th class="px-3 py-2 text-left">Saldo restante</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -709,6 +712,9 @@ async function submitCuota() {
                                                 class="w-full"
                                                 :max="maxFechaVencimiento()"
                                             />
+                                        </td>
+                                        <td class="px-3 py-2 text-sm text-gray-600">
+                                            Bs. {{ (saldosPorFila[idx]?.restante ?? 0).toFixed(2) }}
                                         </td>
                                     </tr>
                                 </tbody>
@@ -759,7 +765,7 @@ async function submitCuota() {
         <div v-if="planesPago?.length" class="mt-8">
             <h3 class="text-lg font-semibold mb-3">Planes de pago a crédito</h3>
             <div v-for="plan in planesPago" :key="plan.id" class="mb-4 p-4 border rounded-lg dark:border-gray-600">
-                <p class="font-medium">Plan #{{ plan.id }} — Bs. {{ Number(plan.monto_total).toFixed(2) }} en {{ plan.num_cuotas }} cuotas</p>
+                <p class="font-medium">Plan #{{ plan.id }} — Total Bs. {{ Number(plan.monto_total).toFixed(2) }} · Saldo pendiente Bs. {{ Number(plan.saldo_pendiente ?? plan.monto_total).toFixed(2) }} ({{ plan.cuotas_pendientes ?? plan.num_cuotas }} cuotas)</p>
                 <FwbTable class="mt-2">
                     <FwbTableHead>
                         <FwbTableHeadCell>Cuota</FwbTableHeadCell>
@@ -787,6 +793,14 @@ async function submitCuota() {
             <template #header><h3>Pagar cuota #{{ selectedCuota?.numero }}</h3></template>
             <template #body>
                 <div class="space-y-3">
+                    <p class="text-sm text-gray-600">
+                        Saldo de la cuota: <strong>Bs. {{ Number(selectedCuota?.monto || 0).toFixed(2) }}</strong>
+                        (puede pagar un monto parcial)
+                    </p>
+                    <div>
+                        <InputLabel value="Monto a pagar (Bs.)" />
+                        <TextInput v-model="cuotaForm.monto" type="number" step="0.01" min="0.01" class="w-full" />
+                    </div>
                     <div>
                         <InputLabel value="Método de pago" />
                         <select v-model="cuotaForm.metodo_pago" class="w-full border rounded px-2 py-2 dark:bg-gray-700">

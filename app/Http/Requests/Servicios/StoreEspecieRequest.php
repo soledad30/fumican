@@ -12,7 +12,7 @@ class StoreEspecieRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->usuarioPuede(PermisoEnum::CREAR_MASCOTAS);
+        return $this->usuarioPuede(PermisoEnum::CREAR_ESPECIES);
     }
 
     protected function prepareForValidation(): void

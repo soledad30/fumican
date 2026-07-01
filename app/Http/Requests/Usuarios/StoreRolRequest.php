@@ -4,6 +4,7 @@ namespace App\Http\Requests\Usuarios;
 
 use App\Enums\PermisoEnum;
 use App\Http\Requests\Concerns\AutorizaPermiso;
+use App\Services\Usuarios\RolService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreRolRequest extends FormRequest
@@ -28,5 +29,20 @@ class StoreRolRequest extends FormRequest
             'permissions' => ['present', 'array'],
             'permissions.*' => ['integer', 'exists:permisos,id'],
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $nombre = (string) $this->input('name', '');
+            $duplicado = app(RolService::class)->buscarDuplicadoPorNombre($nombre);
+
+            if ($duplicado) {
+                $validator->errors()->add(
+                    'name',
+                    "Ya existe un rol con un nombre equivalente: «{$duplicado->nombre}»."
+                );
+            }
+        });
     }
 }

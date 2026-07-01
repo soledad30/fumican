@@ -5,8 +5,11 @@ namespace App\Http\Requests\Servicios;
 use App\Enums\EstadoConsultaEnum;
 use App\Enums\PermisoEnum;
 use App\Http\Requests\Servicios\Concerns\MapsConsultaMedicaPayload;
+use App\Support\PoliticaReserva;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreConsultaMedicaRequest extends FormRequest
 {
@@ -105,6 +108,33 @@ class StoreConsultaMedicaRequest extends FormRequest
             'hora' => 'nullable|string|max:10',
             'modo_consulta' => 'nullable|in:inicial,seguimiento',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $estado = $this->input('estado');
+            if (! in_array($estado, [
+                EstadoConsultaEnum::RESERVADA->value,
+                EstadoConsultaEnum::EN_ESPERA->value,
+            ], true)) {
+                return;
+            }
+
+            $fecha = $this->input('fecha');
+            $hora = $this->input('hora');
+            if (! $fecha || ! $hora) {
+                return;
+            }
+
+            $inicio = Carbon::parse(
+                Carbon::parse($fecha)->format('Y-m-d').' '.PoliticaReserva::normalizarHora($hora)
+            );
+
+            if ($inicio->isPast()) {
+                $validator->errors()->add('hora', 'La hora de la cita no puede estar en el pasado.');
+            }
+        });
     }
 
     public function validated($key = null, $default = null): array
