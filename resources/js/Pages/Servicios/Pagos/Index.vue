@@ -13,7 +13,8 @@ import TextInput from "@/Components/TextInput.vue";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
 import { usePermisos } from "@/Composables/usePermisos";
 import { usePlanCredito } from "@/Composables/usePlanCredito";
-import { usePagoQr } from "@/Composables/usePagoQr";
+import { usePagoQr, aplicarInfoPagoQrAForm } from "@/Composables/usePagoQr";
+import PagoQrConfirmacionModal from "@/Components/Modals/PagoQrConfirmacionModal.vue";
 
 const route = inject("route");
 const { puede } = usePermisos();
@@ -113,12 +114,14 @@ const {
     pagoQrTransaccion,
     pagoQrNumeroPago,
     pagoQrVerificando,
+    pagoQrInfo,
+    showConfirmacionPago,
     limpiarQrPago,
     generarQrPago: generarQrApi,
     verificarQrPago,
     iniciarVerificacionQrPago,
+    cerrarConfirmacionPago,
 } = usePagoQr({
-    onPagado: () => guardarPago(),
     onError: (msg) => toast("danger", msg),
 });
 
@@ -345,6 +348,14 @@ async function recargarDatosPagos() {
     });
 }
 
+async function confirmarPagoQrYGuardar() {
+    if (pagoQrInfo.value) {
+        aplicarInfoPagoQrAForm(form.value, pagoQrInfo.value, pagosPlan.value);
+    }
+    cerrarConfirmacionPago();
+    await guardarPago();
+}
+
 async function guardarPago() {
     if (!selected.value && form.value.tipo_pago === "credito" && pagosPlan.value.length) {
         if (!planValido.value) {
@@ -396,7 +407,7 @@ async function submit() {
             loading.value = true;
             const pagado = await verificarQrPago();
             loading.value = false;
-            if (pagado) await guardarPago();
+            if (pagado) return;
             else {
                 toast("danger", "Pago aún no confirmado. Verificando...");
                 iniciarVerificacionQrPago();
@@ -782,6 +793,13 @@ async function submitCuota() {
                 <FwbButton color="red" :disabled="loading" @click="confirmDelete">Eliminar</FwbButton>
             </template>
         </FwbModal>
+
+        <PagoQrConfirmacionModal
+            :show="showConfirmacionPago"
+            :info="pagoQrInfo"
+            :loading="loading"
+            @confirmar="confirmarPagoQrYGuardar"
+        />
     </AdminLayout>
 </template>
 

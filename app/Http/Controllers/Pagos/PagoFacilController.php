@@ -100,6 +100,7 @@ class PagoFacilController extends Controller
             return response()->json([
                 'pagado' => $estado['pagado'],
                 'paymentStatus' => $estado['paymentStatus'],
+                'paymentInfo' => $estado['paymentInfo'],
                 'data' => $estado['paymentInfo'],
             ]);
         } catch (\Throwable $th) {

@@ -166,10 +166,19 @@ class PaymentGatewayService
                 'paymentStatus' => $paymentStatus,
                 'paymentStatusDescription' => $values->paymentStatusDescription ?? null,
                 'amount' => $values->amount ?? null,
+                'currencyCode' => $values->currencyCode ?? 'BOB',
+                'paymentMethodId' => $values->paymentMethodId ?? null,
+                'paymentMethodDetail' => $values->paymentMethodDetail ?? null,
                 'pagofacilTransactionId' => $values->pagofacilTransactionId ?? null,
                 'companyTransactionId' => $values->companyTransactionId ?? null,
+                'requestDate' => $values->requestDate ?? null,
+                'requestTime' => $values->requestTime ?? null,
                 'paymentDate' => $values->paymentDate ?? null,
                 'paymentTime' => $values->paymentTime ?? null,
+                'payerName' => $values->payerName ?? null,
+                'payerDocument' => $values->payerDocument ?? null,
+                'payerAccount' => $values->payerAccount ?? null,
+                'payerBank' => $values->payerBank ?? null,
             ];
 
             if ($paymentStatus === 1) {

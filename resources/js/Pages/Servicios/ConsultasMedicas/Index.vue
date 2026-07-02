@@ -21,7 +21,8 @@ import { computed, ref, watch, inject, onMounted, onUnmounted } from "vue";
 import axios from "axios";
 import { usePermisos } from "@/Composables/usePermisos";
 import { usePlanCredito } from "@/Composables/usePlanCredito";
-import { usePagoQr } from "@/Composables/usePagoQr";
+import { usePagoQr, aplicarInfoPagoQrAForm } from "@/Composables/usePagoQr";
+import PagoQrConfirmacionModal from "@/Components/Modals/PagoQrConfirmacionModal.vue";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
 
 const route = inject("route");
@@ -173,12 +174,14 @@ const {
     pagoQrTransaccion,
     pagoQrNumeroPago,
     pagoQrVerificando,
+    pagoQrInfo,
+    showConfirmacionPago,
     limpiarQrPago,
     generarQrPago: generarQrApi,
     verificarQrPago,
     iniciarVerificacionQrPago,
+    cerrarConfirmacionPago,
 } = usePagoQr({
-    onPagado: () => guardarPagoConsulta(),
     onError: (msg) => {
         toastType.value = "danger";
         toastMsg.value = msg;
@@ -834,6 +837,14 @@ async function generarQrPago() {
     return ok;
 }
 
+async function confirmarPagoQrYGuardarConsulta() {
+    if (pagoQrInfo.value) {
+        aplicarInfoPagoQrAForm(pagoForm.value, pagoQrInfo.value, pagosPlan.value);
+    }
+    cerrarConfirmacionPago();
+    await guardarPagoConsulta();
+}
+
 async function guardarPagoConsulta() {
     if (!pagoConsulta.value?.id) return;
     if (pagoForm.value.tipo_pago === "credito" && pagosPlan.value.length && !planValido.value) {
@@ -849,6 +860,7 @@ async function guardarPagoConsulta() {
             metodo_pago: pagoForm.value.metodo_pago,
             concepto_pago: "saldo",
             id_transaccion_externa: pagoForm.value.id_transaccion_externa || null,
+            fecha_pago: pagoForm.value.fecha_pago || null,
         };
         if (pagoForm.value.tipo_pago === "credito" && pagosPlan.value.length) {
             payload.cuotas_plan = payloadCuotasPlan();
@@ -890,9 +902,8 @@ async function registrarPagoConsulta() {
             loading.value = true;
             const pagado = await verificarQrPago();
             loading.value = false;
-            if (pagado) {
-                await guardarPagoConsulta();
-            } else {
+            if (pagado) return;
+            else {
                 displayToast("danger", "Pago aún no confirmado. Verificando...");
                 iniciarVerificacionQrPago();
             }
@@ -2410,6 +2421,13 @@ async function submitDelete() {
                 </div>
             </template>
         </FwbModal>
+
+        <PagoQrConfirmacionModal
+            :show="showConfirmacionPago"
+            :info="pagoQrInfo"
+            :loading="loading"
+            @confirmar="confirmarPagoQrYGuardarConsulta"
+        />
 
         <FwbModal v-if="isDeleteModal" @close="closeAllModals">
             <template #header>Confirmar Eliminación</template>
