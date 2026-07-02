@@ -181,20 +181,50 @@ class PaymentGatewayService
                 'payerBank' => $values->payerBank ?? null,
             ];
 
-            if ($paymentStatus === 1) {
+            if ($this->pagoEstaConfirmado(
+                $paymentStatus,
+                $values->paymentStatusDescription ?? null,
+                $values->paymentDate ?? null,
+                $values->paymentTime ?? null
+            )) {
                 $ref = $companyTransactionId
                     ?? ($values->companyTransactionId ?? null);
                 if ($ref) {
-                    $this->marcarPagado($ref);
+                    $this->marcarPagado((string) $ref);
                 }
             }
         }
 
         return [
-            'pagado' => $paymentStatus === 1,
+            'pagado' => $paymentInfo
+                ? $this->pagoEstaConfirmado(
+                    $paymentStatus,
+                    $paymentInfo['paymentStatusDescription'] ?? null,
+                    $paymentInfo['paymentDate'] ?? null,
+                    $paymentInfo['paymentTime'] ?? null
+                )
+                : false,
             'paymentStatus' => $paymentStatus,
             'paymentInfo' => $paymentInfo,
         ];
+    }
+
+    private function pagoEstaConfirmado(
+        ?int $paymentStatus,
+        ?string $description,
+        ?string $paymentDate,
+        ?string $paymentTime
+    ): bool {
+        if ($paymentStatus === 1) {
+            return true;
+        }
+
+        $desc = strtoupper(trim((string) ($description ?? '')));
+        if (in_array($desc, ['PAGADO', 'APROBADO', 'COMPLETED', 'PAID', 'SUCCESS'], true)) {
+            return true;
+        }
+
+        return filled($paymentDate) && filled($paymentTime);
     }
 
     public function confirmarDesdeCallback(string $pedidoId): void

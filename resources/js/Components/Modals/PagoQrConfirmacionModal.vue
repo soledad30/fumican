@@ -1,7 +1,7 @@
 <script setup>
 import { FwbModal, FwbButton, FwbBadge } from "flowbite-vue";
 import { computed } from "vue";
-import { formatearFechaHoraPagoQr, textoEstadoPagoQr } from "@/Composables/usePagoQr";
+import { formatearFechaHoraPagoQr, textoEstadoPagoQr, infoPagoQrConfirmada } from "@/Composables/usePagoQr";
 
 const props = defineProps({
     show: { type: Boolean, default: false },
@@ -12,16 +12,16 @@ const props = defineProps({
 const emit = defineEmits(["confirmar"]);
 
 const estadoBadge = computed(() => {
+    if (infoPagoQrConfirmada(props.info)) return "green";
     const status = props.info?.paymentStatus;
-    if (status === 1) return "green";
     if (status === 2) return "yellow";
     return "red";
 });
 
 const estadoTexto = computed(() => {
-    return (
-        props.info?.paymentStatusDescription ||
-        textoEstadoPagoQr(props.info?.paymentStatus)
+    return textoEstadoPagoQr(
+        props.info?.paymentStatus,
+        props.info?.paymentStatusDescription
     );
 });
 </script>

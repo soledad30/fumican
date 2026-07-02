@@ -1,13 +1,23 @@
 import axios from "axios";
 import { ref } from "vue";
 
+export function infoPagoQrConfirmada(info) {
+    if (!info || typeof info !== "object") return false;
+    if (Number(info.paymentStatus) === 1) return true;
+
+    const desc = String(info.paymentStatusDescription || "").trim().toUpperCase();
+    if (["PAGADO", "APROBADO", "COMPLETED", "PAID", "SUCCESS"].includes(desc)) {
+        return true;
+    }
+
+    return Boolean(info.paymentDate && info.paymentTime);
+}
+
 export function esPagoQrConfirmado(data) {
-    return (
-        data?.pagado === true ||
-        data?.paymentStatus === 1 ||
-        data?.data?.paymentStatus === 1 ||
-        data?.paymentInfo?.paymentStatus === 1
-    );
+    if (data?.pagado === true) return true;
+
+    const candidatos = [data?.paymentInfo, data?.data, data].filter(Boolean);
+    return candidatos.some((info) => infoPagoQrConfirmada(info));
 }
 
 export function normalizarInfoPagoQr(data) {
@@ -35,14 +45,17 @@ export function normalizarInfoPagoQr(data) {
     };
 }
 
-export function textoEstadoPagoQr(status) {
+export function textoEstadoPagoQr(status, descripcion) {
+    if (infoPagoQrConfirmada({ paymentStatus: status, paymentStatusDescription: descripcion })) {
+        return descripcion || "Pagado";
+    }
     const map = {
         1: "Pagado",
         2: "Pendiente",
         3: "Expirado",
         4: "Cancelado",
     };
-    return map[status] ?? "Desconocido";
+    return map[status] ?? descripcion ?? "Desconocido";
 }
 
 export function formatearFechaHoraPagoQr(fecha, hora) {
@@ -96,25 +109,19 @@ function payloadVerificarPago(numeroTransaccion, numeroPago) {
 
 export function usePagoQr({
     onError,
-    intervalMs = 5000,
-    esperaInicialMs = 40000,
-    maxIntentos = 24,
+    esperaInicialMs = 30000,
 } = {}) {
     const pagoQrImage = ref("");
     const pagoQrTransaccion = ref("");
     const pagoQrNumeroPago = ref("");
     const pagoQrVerificando = ref(false);
     const pagoQrEsperando = ref(false);
+    const pagoQrVerificacionLista = ref(false);
     const pagoQrInfo = ref(null);
     const showConfirmacionPago = ref(false);
-    let pagoQrInterval = null;
     let pagoQrDelayTimeout = null;
 
     function limpiarQrPago() {
-        if (pagoQrInterval) {
-            clearInterval(pagoQrInterval);
-            pagoQrInterval = null;
-        }
         if (pagoQrDelayTimeout) {
             clearTimeout(pagoQrDelayTimeout);
             pagoQrDelayTimeout = null;
@@ -124,6 +131,7 @@ export function usePagoQr({
         pagoQrNumeroPago.value = "";
         pagoQrVerificando.value = false;
         pagoQrEsperando.value = false;
+        pagoQrVerificacionLista.value = false;
         pagoQrInfo.value = null;
         showConfirmacionPago.value = false;
     }
@@ -141,6 +149,7 @@ export function usePagoQr({
             pagoQrNumeroPago.value =
                 data.numeroPago != null ? String(data.numeroPago) : "";
             pagoQrInfo.value = null;
+            pagoQrVerificacionLista.value = false;
             showConfirmacionPago.value = false;
             return true;
         } catch (e) {
@@ -156,10 +165,10 @@ export function usePagoQr({
         }
         try {
             const { data } = await axios.post("/api/verificar-pago", body);
-            if (!esPagoQrConfirmado(data)) {
-                return { pagado: false, info: null };
-            }
             const info = normalizarInfoPagoQr(data);
+            if (!esPagoQrConfirmado(data)) {
+                return { pagado: false, info };
+            }
             pagoQrInfo.value = info;
             if (info.pagofacilTransactionId) {
                 pagoQrTransaccion.value = info.pagofacilTransactionId;
@@ -176,38 +185,47 @@ export function usePagoQr({
         return resultado.pagado;
     }
 
+    async function ejecutarVerificacionUnica() {
+        pagoQrVerificando.value = true;
+        pagoQrVerificacionLista.value = false;
+        try {
+            const resultado = await verificarQrPagoDetalle();
+            pagoQrVerificacionLista.value = true;
+            if (!resultado.pagado) {
+                onError?.(
+                    "El pago QR aún no está confirmado. Escanee el código y pulse «Verificar pago»."
+                );
+            }
+            return resultado;
+        } finally {
+            pagoQrVerificando.value = false;
+        }
+    }
+
     function iniciarVerificacionQrPago() {
-        if (pagoQrInterval) clearInterval(pagoQrInterval);
-        if (pagoQrDelayTimeout) clearTimeout(pagoQrDelayTimeout);
+        if (pagoQrDelayTimeout) {
+            clearTimeout(pagoQrDelayTimeout);
+            pagoQrDelayTimeout = null;
+        }
 
         pagoQrVerificando.value = false;
         pagoQrEsperando.value = true;
-        let intentos = 0;
+        pagoQrVerificacionLista.value = false;
 
-        pagoQrDelayTimeout = setTimeout(() => {
+        pagoQrDelayTimeout = setTimeout(async () => {
             pagoQrDelayTimeout = null;
             pagoQrEsperando.value = false;
-            pagoQrVerificando.value = true;
-
-            pagoQrInterval = setInterval(async () => {
-                intentos++;
-                const resultado = await verificarQrPagoDetalle();
-                if (resultado.pagado) {
-                    clearInterval(pagoQrInterval);
-                    pagoQrInterval = null;
-                    pagoQrVerificando.value = false;
-                    return;
-                }
-                if (intentos >= maxIntentos) {
-                    clearInterval(pagoQrInterval);
-                    pagoQrInterval = null;
-                    pagoQrVerificando.value = false;
-                    onError?.(
-                        "El pago QR no fue confirmado. Escanee el código e intente de nuevo."
-                    );
-                }
-            }, intervalMs);
+            await ejecutarVerificacionUnica();
         }, esperaInicialMs);
+    }
+
+    async function reintentarVerificacionQrPago() {
+        if (pagoQrDelayTimeout) {
+            clearTimeout(pagoQrDelayTimeout);
+            pagoQrDelayTimeout = null;
+        }
+        pagoQrEsperando.value = false;
+        return ejecutarVerificacionUnica();
     }
 
     function cerrarConfirmacionPago() {
@@ -216,10 +234,13 @@ export function usePagoQr({
 
     function textoEstadoVerificacionQr() {
         if (pagoQrEsperando.value) {
-            return "Escanee el QR con su app bancaria. La verificación comenzará en unos segundos...";
+            return "Escanee el QR con su app bancaria. Consultaremos el pago en 30 segundos...";
         }
         if (pagoQrVerificando.value) {
-            return "Verificando pago QR...";
+            return "Consultando estado del pago...";
+        }
+        if (pagoQrVerificacionLista.value && !showConfirmacionPago.value) {
+            return "Pago no confirmado aún. Pulse «Verificar pago» cuando el cliente haya pagado.";
         }
         return "Escanee el QR para completar el cobro.";
     }
@@ -230,6 +251,7 @@ export function usePagoQr({
         pagoQrNumeroPago,
         pagoQrVerificando,
         pagoQrEsperando,
+        pagoQrVerificacionLista,
         pagoQrInfo,
         showConfirmacionPago,
         limpiarQrPago,
@@ -237,6 +259,7 @@ export function usePagoQr({
         verificarQrPago,
         verificarQrPagoDetalle,
         iniciarVerificacionQrPago,
+        reintentarVerificacionQrPago,
         cerrarConfirmacionPago,
         textoEstadoVerificacionQr,
     };
