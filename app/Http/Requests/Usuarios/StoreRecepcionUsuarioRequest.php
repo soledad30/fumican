@@ -3,12 +3,10 @@
 namespace App\Http\Requests\Usuarios;
 
 use App\Enums\PermisoEnum;
-use App\Enums\RolEnum;
 use App\Http\Requests\Concerns\AutorizaPermiso;
 use App\Models\Servicios\Cliente;
-use App\Models\Usuarios\Rol;
+use App\Support\RolCliente;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreRecepcionUsuarioRequest extends FormRequest
@@ -20,21 +18,14 @@ class StoreRecepcionUsuarioRequest extends FormRequest
         return $this->usuarioPuede(PermisoEnum::CREAR_CLIENTES);
     }
 
-    protected function prepareForValidation(): void
-    {
-        $rolCliente = Rol::where('nombre', RolEnum::CLIENTE->value)->first();
-
-        $this->merge([
-            'role_id' => $rolCliente?->id,
-        ]);
-    }
-
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            $rolCliente = Rol::where('nombre', RolEnum::CLIENTE->value)->first();
-            if ($rolCliente && (int) $this->input('role_id') !== (int) $rolCliente->id) {
-                $validator->errors()->add('role_id', 'En recepción solo se puede crear un usuario con rol cliente.');
+            if ($this->filled('role_id') && (int) $this->input('role_id') !== RolCliente::id()) {
+                $validator->errors()->add(
+                    'role_id',
+                    'En recepción solo se puede crear un usuario con rol cliente.'
+                );
             }
         });
     }
@@ -54,29 +45,28 @@ class StoreRecepcionUsuarioRequest extends FormRequest
                     }
                 },
             ],
-            'role_id' => [
-                'required',
-                Rule::exists('roles', 'id')->where(fn ($q) => $q->where('nombre', RolEnum::CLIENTE->value)),
-            ],
         ];
-    }
-
-    public function validated($key = null, $default = null)
-    {
-        $data = parent::validated($key, $default);
-
-        if (is_array($data) && isset($data['role_id'])) {
-            $data['rol_id'] = $data['role_id'];
-            unset($data['role_id']);
-        }
-
-        return $data;
     }
 
     public function messages(): array
     {
         return [
-            'cliente_id.unique' => 'Este cliente ya tiene una cuenta de acceso.',
+            'first_name.required' => 'El nombre es obligatorio.',
+            'last_name.required' => 'El apellido es obligatorio.',
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.unique' => 'Este correo ya está registrado.',
+            'cliente_id.required' => 'Debe seleccionar el cliente.',
+            'cliente_id.exists' => 'El cliente seleccionado no es válido.',
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'first_name' => 'nombre',
+            'last_name' => 'apellido',
+            'email' => 'correo electrónico',
+            'cliente_id' => 'cliente',
         ];
     }
 }

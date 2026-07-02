@@ -384,6 +384,7 @@
 import { ref, computed } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import { FwbToast } from 'flowbite-vue'
+import { esPagoQrConfirmado } from '@/Composables/usePagoQr'
 
 const props = defineProps({
   servicios: { type: Array, default: () => [] },
@@ -401,6 +402,7 @@ const toastType = ref('success')
 
 const qrImageUrl = ref('')
 const transactionId = ref('')
+const numeroPago = ref('')
 const montoAnticipoPago = ref(0)
 const porcentajeAnticipo = ref(20)
 
@@ -517,7 +519,7 @@ async function confirmPayment() {
   const interval = setInterval(async () => {
     attempts++
 
-    const confirmado = await verifyPurchase(transactionId.value)
+    const confirmado = await verifyPurchase()
 
     if (confirmado) {
       clearInterval(interval)
@@ -577,7 +579,8 @@ async function generateQrCode() {
     if (!data.success) {
       throw new Error(data.message || 'Error al generar el QR')
     }
-    transactionId.value = data.numeroTransaccion
+    transactionId.value = data.numeroTransaccion || ''
+    numeroPago.value = data.numeroPago || ''
     montoAnticipoPago.value = Number(data.montoAnticipo) || 0
     if (data.porcentajeAnticipo) porcentajeAnticipo.value = data.porcentajeAnticipo
     return data.qrImage
@@ -587,7 +590,7 @@ async function generateQrCode() {
   }
 }
 
-async function verifyPurchase(transactionID) {
+async function verifyPurchase() {
   try {
     const response = await fetch('/api/verificar-pago', {
       method: 'POST',
@@ -596,11 +599,14 @@ async function verifyPurchase(transactionID) {
         'Content-Type': 'application/json',
         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
       },
-      body: JSON.stringify({ numeroTransaccion: transactionID }),
+      body: JSON.stringify({
+        numeroTransaccion: transactionId.value || undefined,
+        numeroPago: numeroPago.value || undefined,
+      }),
     })
 
     const result = await response.json()
-    return result.data?.EstadoTransaccion === 5
+    return esPagoQrConfirmado(result)
   } catch (error) {
     console.error('Error al verificar el pago:', error)
     return false

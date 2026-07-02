@@ -12,17 +12,12 @@ class RolRepository
 
     public function getAll()
     {
-        $query = $this->model->query()
+        return $this->model->query()
             ->when(request()->boolean('with_permissions'), function ($query) {
                 $query->with('permisos:id,nombre');
             })
-            ->orderBy('actualizado_en', 'asc');
-
-        if (request()->has('page')) {
-            return $query->paginate();
-        }
-
-        return $query->get();
+            ->orderBy('actualizado_en', 'asc')
+            ->get();
     }
 
     public function getAllPaginated()

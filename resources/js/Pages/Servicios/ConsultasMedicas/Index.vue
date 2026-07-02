@@ -21,6 +21,7 @@ import { computed, ref, watch, inject, onMounted, onUnmounted } from "vue";
 import axios from "axios";
 import { usePermisos } from "@/Composables/usePermisos";
 import { usePlanCredito } from "@/Composables/usePlanCredito";
+import { usePagoQr } from "@/Composables/usePagoQr";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
 
 const route = inject("route");
@@ -166,10 +167,26 @@ const {
     maxFechaVencimiento,
     payloadCuotasPlan,
 } = usePlanCredito(() => saldoConsulta(pagoConsulta.value));
-const pagoQrImage = ref("");
-const pagoQrTransaccion = ref("");
-const pagoQrVerificando = ref(false);
-let pagoQrInterval = null;
+
+const {
+    pagoQrImage,
+    pagoQrTransaccion,
+    pagoQrNumeroPago,
+    pagoQrVerificando,
+    limpiarQrPago,
+    generarQrPago: generarQrApi,
+    verificarQrPago,
+    iniciarVerificacionQrPago,
+} = usePagoQr({
+    onPagado: () => guardarPagoConsulta(),
+    onError: (msg) => {
+        toastType.value = "danger";
+        toastMsg.value = msg;
+        showToast.value = true;
+        setTimeout(() => (showToast.value = false), 3000);
+    },
+});
+
 const isSearchPetModal = ref(false);
 const isViewModal = ref(false);
 const modalMode = ref("create");
@@ -757,16 +774,6 @@ function datosClienteQr(consultation) {
     return { name: nombre, phone, email, descripcion: servicio };
 }
 
-function limpiarQrPago() {
-    if (pagoQrInterval) {
-        clearInterval(pagoQrInterval);
-        pagoQrInterval = null;
-    }
-    pagoQrImage.value = "";
-    pagoQrTransaccion.value = "";
-    pagoQrVerificando.value = false;
-}
-
 function abrirPagoModal(consultation) {
     const saldo = saldoConsulta(consultation);
     if (saldo <= 0) {
@@ -815,67 +822,16 @@ async function generarQrPago() {
     }
 
     const cliente = datosClienteQr(pagoConsulta.value);
-    try {
-        const { data } = await axios.post("/api/generar-qr", {
-            ...cliente,
-            monto,
-            serviceId: pagoConsulta.value?.servicio_id || pagoConsulta.value?.service_id,
-        });
-        if (!data.success || !data.qrImage) {
-            displayToast("danger", data.message || "No se pudo generar el código QR.");
-            return false;
-        }
-        pagoQrImage.value = `data:image/png;base64,${data.qrImage}`;
-        pagoQrTransaccion.value = data.numeroTransaccion;
-        pagoForm.value.id_transaccion_externa = data.numeroTransaccion || "";
-        return true;
-    } catch (e) {
-        displayToast(
-            "danger",
-            e.response?.data?.message || "Error al generar el código QR."
-        );
-        return false;
+    const ok = await generarQrApi({
+        ...cliente,
+        monto,
+        serviceId: pagoConsulta.value?.servicio_id || pagoConsulta.value?.service_id,
+    });
+    if (ok) {
+        pagoForm.value.id_transaccion_externa =
+            pagoQrTransaccion.value || pagoQrNumeroPago.value || "";
     }
-}
-
-async function verificarQrPago() {
-    if (!pagoQrTransaccion.value) return false;
-    try {
-        const { data } = await axios.post("/api/verificar-pago", {
-            numeroTransaccion: pagoQrTransaccion.value,
-        });
-        return data.data?.EstadoTransaccion === 5;
-    } catch {
-        return false;
-    }
-}
-
-function iniciarVerificacionQrPago() {
-    if (pagoQrInterval) clearInterval(pagoQrInterval);
-    pagoQrVerificando.value = true;
-    let intentos = 0;
-    const maxIntentos = 12;
-
-    pagoQrInterval = setInterval(async () => {
-        intentos++;
-        const pagado = await verificarQrPago();
-        if (pagado) {
-            clearInterval(pagoQrInterval);
-            pagoQrInterval = null;
-            pagoQrVerificando.value = false;
-            await guardarPagoConsulta();
-            return;
-        }
-        if (intentos >= maxIntentos) {
-            clearInterval(pagoQrInterval);
-            pagoQrInterval = null;
-            pagoQrVerificando.value = false;
-            displayToast(
-                "danger",
-                "El pago QR no fue confirmado. Escanee el código e intente de nuevo."
-            );
-        }
-    }, 5000);
+    return ok;
 }
 
 async function guardarPagoConsulta() {

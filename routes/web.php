@@ -7,6 +7,7 @@ use App\Http\Controllers\Portal\PortalClienteController;
 use App\Http\Controllers\Reportes\BitacoraController;
 use App\Http\Controllers\Reportes\MatrizAccesoController;
 use App\Http\Controllers\Reportes\ReporteController;
+use App\Http\Controllers\Pagos\PagoFacilController;
 use App\Http\Controllers\Reservas\ReservaController;
 use App\Http\Controllers\Servicios\ClienteController;
 use App\Http\Controllers\Servicios\ConsultaMedicaController;
@@ -75,9 +76,9 @@ Route::middleware([
             Route::get('razas', [RecepcionController::class, 'razas'])->name('razas');
             Route::post('preparar-datos', [RecepcionController::class, 'prepararDatos'])->name('preparar-datos');
             Route::post('clientes', [RecepcionController::class, 'storeCliente'])->name('clientes.store');
-            Route::put('clientes/{customer}', [RecepcionController::class, 'updateCliente'])->name('clientes.update');
+            Route::put('clientes/{cliente}', [RecepcionController::class, 'updateCliente'])->name('clientes.update');
             Route::post('mascotas', [RecepcionController::class, 'storeMascota'])->name('mascotas.store');
-            Route::put('mascotas/{pet}', [RecepcionController::class, 'updateMascota'])->name('mascotas.update');
+            Route::put('mascotas/{mascota}', [RecepcionController::class, 'updateMascota'])->name('mascotas.update');
             Route::post('usuario', [RecepcionController::class, 'storeUsuario'])->name('usuario.store');
         });
 
@@ -274,6 +275,7 @@ Route::middleware([
 });
 
 Route::post('/reservas/pdf', [ReservaController::class, 'reservePdf'])->name('reservas.pdf');
+Route::post('/pago-facil/callback', [PagoFacilController::class, 'callback'])->name('pagofacil.callback');
 Route::middleware(['auth:sanctum', config('jetstream.auth_session')])->group(function () {
     Route::get('/busqueda-global', [GlobalSearchController::class, 'search'])->name('busqueda.global');
 });

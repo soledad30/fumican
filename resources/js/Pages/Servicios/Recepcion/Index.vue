@@ -4,14 +4,25 @@ import { router } from "@inertiajs/vue3";
 import { FwbButton, FwbRadio, FwbSpinner, FwbToast } from "flowbite-vue";
 import { computed, onMounted, ref, watch } from "vue";
 import axios from "axios";
+import { resolveAppUrl } from "@/Utils/appUrl";
 import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputError from "@/Components/InputError.vue";
 import FormSectionTitle from "@/Components/Forms/FormSectionTitle.vue";
 
+function recepcionUrl(name, params = {}) {
+    return resolveAppUrl(route(name, params));
+}
+
+function idNumerico(valor) {
+    const id = Number(valor);
+    return Number.isFinite(id) && id > 0 ? id : null;
+}
+
 const props = defineProps({
     especies: Array,
     clientesSinUsuario: { type: Array, default: () => [] },
+    rolClienteId: { type: Number, default: null },
 });
 
 const step = ref(1);
@@ -63,6 +74,7 @@ const usuario = ref({
     crear_cuenta: true,
     email: "",
 });
+const accesoPortal = ref({ creado: false, email: "", password: "" });
 
 const allSpecies = ref([]);
 const breedsForSpecie = ref([]);
@@ -214,7 +226,7 @@ function resetSpecieBreedState() {
 async function buscarClientes() {
     isFetchingClientes.value = true;
     try {
-        const { data } = await axios.get(route("recepcion.clientes"), {
+        const { data } = await axios.get(recepcionUrl("recepcion.clientes"), {
             params: { search: clienteBusqueda.value.trim() },
         });
         clientesOpciones.value = Array.isArray(data) ? data : [];
@@ -256,9 +268,17 @@ async function cargarClienteSeleccionado() {
 
     loading.value = true;
     clienteListo.value = false;
+    const id = idNumerico(clienteSeleccionadoId.value);
+    if (!id) {
+        clienteListo.value = false;
+        clienteSnapshot.value = null;
+        loading.value = false;
+        return;
+    }
+
     try {
         const { data } = await axios.get(
-            route("recepcion.clientes.show", clienteSeleccionadoId.value)
+            recepcionUrl("recepcion.clientes.show", { cliente: id })
         );
         clienteId.value = data.id;
         clienteTieneUsuario.value = Boolean(data.usuario_id);
@@ -291,9 +311,15 @@ async function cargarMascotasCliente() {
         return;
     }
 
+    const id = idNumerico(clienteId.value);
+    if (!id) {
+        mascotasCliente.value = [];
+        return;
+    }
+
     try {
         const { data } = await axios.get(
-            route("recepcion.clientes.mascotas", clienteId.value)
+            recepcionUrl("recepcion.clientes.mascotas", { cliente: id })
         );
         mascotasCliente.value = data;
         if (data.length > 0 && modoMascota.value === "existente") {
@@ -379,7 +405,7 @@ async function fetchBreedsForSpecie(specieId) {
     }
     isFetchingBreeds.value = true;
     try {
-        const { data } = await axios.get(route("recepcion.razas"), {
+        const { data } = await axios.get(recepcionUrl("recepcion.razas"), {
             params: { search: "", specie_id: specieId },
         });
         breedsForSpecie.value = data;
@@ -449,7 +475,7 @@ async function resolveBreedBeforeSave() {
         return false;
     }
 
-    const { data } = await axios.post(route("recepcion.preparar-datos"), {
+    const { data } = await axios.post(recepcionUrl("recepcion.preparar-datos"), {
         breed: breedName,
         specie: specieName,
     });
@@ -500,8 +526,14 @@ async function guardarCliente() {
             }
 
             if (clienteDatosModificados()) {
+                const clienteIdActualizar = idNumerico(clienteSeleccionadoId.value);
+                if (!clienteIdActualizar) {
+                    toast("danger", "Seleccione un cliente válido.");
+                    return;
+                }
+
                 const { data } = await axios.put(
-                    route("recepcion.clientes.update", clienteSeleccionadoId.value),
+                    recepcionUrl("recepcion.clientes.update", { cliente: clienteIdActualizar }),
                     payloadCliente()
                 );
                 clienteId.value = data.customer?.id ?? clienteSeleccionadoId.value;
@@ -514,7 +546,7 @@ async function guardarCliente() {
         }
 
         const { data } = await axios.post(
-            route("recepcion.clientes.store"),
+            recepcionUrl("recepcion.clientes.store"),
             payloadCliente()
         );
         clienteId.value = data.customer?.id;
@@ -558,8 +590,15 @@ async function guardarMascota() {
                 return;
             }
 
+            const mascotaIdActualizar = idNumerico(mascotaSeleccionadaId.value);
+            if (!mascotaIdActualizar) {
+                toast("danger", "Seleccione una mascota válida.");
+                loading.value = false;
+                return;
+            }
+
             const { data } = await axios.put(
-                route("recepcion.mascotas.update", mascotaSeleccionadaId.value),
+                recepcionUrl("recepcion.mascotas.update", { mascota: mascotaIdActualizar }),
                 buildMascotaFormData(),
                 { headers: { "Content-Type": "multipart/form-data" } }
             );
@@ -572,7 +611,7 @@ async function guardarMascota() {
             }
 
             const { data } = await axios.post(
-                route("recepcion.mascotas.store"),
+                recepcionUrl("recepcion.mascotas.store"),
                 buildMascotaFormData(),
                 { headers: { "Content-Type": "multipart/form-data" } }
             );
@@ -580,6 +619,10 @@ async function guardarMascota() {
             toast("success", "Mascota registrada.");
         }
 
+        if (!clienteUsuarioId.value && clienteId.value && !clienteTieneUsuario.value) {
+            clienteUsuarioId.value = String(clienteId.value);
+        }
+        await refrescarClientesSinUsuario();
         step.value = 3;
     } catch (e) {
         formErrors.value = e.response?.data?.errors ?? {};
@@ -591,7 +634,7 @@ async function guardarMascota() {
 
 async function refrescarClientesSinUsuario() {
     try {
-        const { data } = await axios.get(route("recepcion.clientes-sin-usuario"));
+        const { data } = await axios.get(recepcionUrl("recepcion.clientes-sin-usuario"));
         clientesSinUsuarioLista.value = data;
     } catch {
         clientesSinUsuarioLista.value = props.clientesSinUsuario ?? [];
@@ -618,15 +661,24 @@ async function guardarUsuario() {
     formErrors.value = {};
 
     try {
-        await axios.post(route("recepcion.usuario.store"), {
+        const { data } = await axios.post(recepcionUrl("recepcion.usuario.store"), {
             first_name: destino?.first_name ?? destino?.nombre ?? cliente.value.first_name,
             last_name: destino?.last_name ?? destino?.apellido ?? cliente.value.last_name,
             email: usuario.value.email || cliente.value.email,
             cliente_id: destinoId,
+            ...(props.rolClienteId ? { role_id: props.rolClienteId } : {}),
         });
         step.value = 4;
         clienteTieneUsuario.value = true;
-        toast("success", "Usuario cliente creado. Ya puede ingresar al portal.");
+        accesoPortal.value = {
+            creado: true,
+            email: usuario.value.email || cliente.value.email,
+            password: data.password_generada || "",
+        };
+        const mensaje = data.password_generada
+            ? `Acceso creado. Correo: ${usuario.value.email || cliente.value.email}. Contraseña temporal: ${data.password_generada}`
+            : "Usuario cliente creado. Ya puede ingresar al portal.";
+        toast("success", mensaje);
         await refrescarClientesSinUsuario();
     } catch (e) {
         formErrors.value = e.response?.data?.errors ?? {};
@@ -664,7 +716,7 @@ async function avanzarDesdePaso2SinCambios() {
         <div class="recepcion-clinica w-full min-w-0 pb-6">
             <div class="mb-4 sm:mb-6">
                 <h2 class="text-xl sm:text-2xl font-semibold vet-page-title">Recepción clínica</h2>
-                
+
             </div>
 
             <div
@@ -1035,9 +1087,7 @@ async function avanzarDesdePaso2SinCambios() {
         <!-- Paso 3: Usuario portal -->
         <div v-else-if="step === 3" class="vet-panel p-4 sm:p-6 w-full max-w-3xl">
             <h3 class="font-semibold mb-4">Cuenta de acceso al portal</h3>
-            <p class="text-sm text-gray-500 mb-4">
-                El usuario creado tendrá rol <strong>cliente</strong> y acceso a «Mi cuenta» / carnet virtual.
-            </p>
+
             <div
                 v-if="clienteTieneUsuario"
                 class="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-800"
@@ -1075,7 +1125,9 @@ async function avanzarDesdePaso2SinCambios() {
                         <InputLabel value="Correo de acceso" />
                         <TextInput v-model="usuario.email" type="email" class="w-full mt-1" />
                         <InputError :message="formErrors.email?.[0]" />
-                        <p class="text-xs text-gray-500 mt-2">La contraseña se generará automáticamente.</p>
+                        <p class="text-xs text-gray-500 mt-2">
+                            Se creará con rol <strong>Cliente</strong>. La contraseña se generará automáticamente.
+                        </p>
                     </div>
                 </div>
             </template>
@@ -1094,7 +1146,14 @@ async function avanzarDesdePaso2SinCambios() {
             <h3 class="text-xl font-semibold mb-2">Recepción completada</h3>
             <p class="text-gray-600 mb-6">
                 Cliente #{{ clienteId }}, mascota #{{ mascotaId }}.
-                <span v-if="usuario.crear_cuenta && !clienteTieneUsuario">
+                <span v-if="accesoPortal.creado">
+                    El dueño puede ingresar en <strong>/login</strong> con
+                    <strong>{{ accesoPortal.email }}</strong>
+                    <span v-if="accesoPortal.password">
+                        y la contraseña temporal <strong>{{ accesoPortal.password }}</strong>.
+                    </span>
+                </span>
+                <span v-else-if="usuario.crear_cuenta && !clienteTieneUsuario">
                     El dueño puede ingresar con su correo cuando se cree el acceso.
                 </span>
             </p>

@@ -39,6 +39,18 @@ const filters = ref({
     search_term: props.filters?.search_term || "",
     role_id: props.filters?.role_id || "",
 });
+
+/** Siempre lista plana de roles (evita objeto paginado cuando la URL lleva ?page=). */
+const rolesLista = computed(() => {
+    if (Array.isArray(props.roles)) {
+        return props.roles.filter(Boolean);
+    }
+    if (props.roles?.data && Array.isArray(props.roles.data)) {
+        return props.roles.data.filter(Boolean);
+    }
+    return [];
+});
+
 function applyFilters() {
     router.get(route("usuarios.search"), filters.value, {
         preserveState: true,
@@ -51,7 +63,15 @@ function resetFilters() {
 }
 
 // --- PAGINATION ---
-const currentPage = ref(props.users.current_page || 1);
+const currentPage = ref(props.users?.current_page || 1);
+watch(
+    () => props.users?.current_page,
+    (page) => {
+        if (page && page !== currentPage.value) {
+            currentPage.value = page;
+        }
+    }
+);
 watch(currentPage, (newPage) => {
     router.get(
         route("usuarios.search"),
@@ -107,17 +127,18 @@ const canEditUsers = computed(() => esAdmin.value || puede("editar usuarios"));
 const canDeleteUsers = computed(() => esAdmin.value || puede("administrar_sistema"));
 
 const rolesDisponibles = computed(() => {
+    const lista = rolesLista.value;
     if (esAdmin.value) {
-        return props.roles;
+        return lista;
     }
-    return props.roles.filter((r) => {
+    return lista.filter((r) => {
         const nombre = (r.name || r.nombre || "").toLowerCase();
         return !["propietario", "administrador"].includes(nombre);
     });
 });
 
 const rolSeleccionado = computed(() =>
-    props.roles.find((r) => String(r.id) === String(form.value.role_id))
+    rolesLista.value.find((r) => String(r.id) === String(form.value.role_id))
 );
 
 const nombreRolSeleccionado = computed(
@@ -133,10 +154,10 @@ const esRolSistema = computed(() =>
 );
 
 const rolClienteId = computed(
-    () => props.roles.find((r) => (r.name || r.nombre) === "cliente")?.id
+    () => rolesLista.value.find((r) => (r.name || r.nombre) === "cliente")?.id
 );
 const rolVeterinarioId = computed(
-    () => props.roles.find((r) => (r.name || r.nombre) === "veterinario")?.id
+    () => rolesLista.value.find((r) => (r.name || r.nombre) === "veterinario")?.id
 );
 
 const listaVinculos = computed(() => {
@@ -425,7 +446,7 @@ async function submitDelete() {
                 <label class="block text-sm font-medium mb-1.5">Filtrar por rol</label>
                 <select v-model="filters.role_id" class="w-full mt-1 rounded-md shadow-sm themed-input">
                     <option value="">Todos los roles</option>
-                    <option v-for="role in roles" :key="role.id" :value="role.id">
+                    <option v-for="role in rolesLista" :key="role.id" :value="role.id">
                         {{ role.name || role.nombre }}
                     </option>
                 </select>
@@ -465,7 +486,7 @@ async function submitDelete() {
                 >
             </FwbTableHead>
             <FwbTableBody>
-                <FwbTableRow v-if="!users.data.length"
+                <FwbTableRow v-if="!users?.data?.length"
                     ><FwbTableCell
                         colspan="7"
                         class="text-center py-8 vet-cell-muted"
@@ -474,7 +495,7 @@ async function submitDelete() {
                 >
                 <FwbTableRow
                     v-for="user in users.data"
-                    :key="user.id"
+                    :key="user?.id ?? user?.email"
                 >
                     <FwbTableCell class="vet-cell-primary">{{
                         user.full_name
@@ -515,11 +536,10 @@ async function submitDelete() {
             </FwbTableBody>
         </FwbTable>
         </div>
-        <div v-if="users.data.length" class="flex justify-center my-4">
+        <div v-if="users?.data?.length" class="flex justify-center my-4">
             <FwbPagination
                 v-model="currentPage"
-                :total-items="users.total"
-                :per-page="users.per_page"
+                :total-pages="users.last_page"
                 large
             />
         </div>

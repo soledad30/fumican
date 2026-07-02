@@ -13,6 +13,7 @@ import TextInput from "@/Components/TextInput.vue";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
 import { usePermisos } from "@/Composables/usePermisos";
 import { usePlanCredito } from "@/Composables/usePlanCredito";
+import { usePagoQr } from "@/Composables/usePagoQr";
 
 const route = inject("route");
 const { puede } = usePermisos();
@@ -51,10 +52,6 @@ const form = ref({
 const isCuotaModal = ref(false);
 const cuotaForm = ref({ monto: 0, metodo_pago: "efectivo", id_transaccion_externa: "", fecha_pago: "" });
 const selectedCuota = ref(null);
-const pagoQrImage = ref("");
-const pagoQrTransaccion = ref("");
-const pagoQrVerificando = ref(false);
-let pagoQrInterval = null;
 
 const notasParaCobro = computed(() =>
     props.notasVenta.filter((n) => Number(n.saldo_pendiente ?? n.monto_total ?? 0) > 0)
@@ -110,6 +107,20 @@ function toast(type, msg) {
     toastType.value = type; toastMsg.value = msg; showToast.value = true;
     setTimeout(() => (showToast.value = false), 3000);
 }
+
+const {
+    pagoQrImage,
+    pagoQrTransaccion,
+    pagoQrNumeroPago,
+    pagoQrVerificando,
+    limpiarQrPago,
+    generarQrPago: generarQrApi,
+    verificarQrPago,
+    iniciarVerificacionQrPago,
+} = usePagoQr({
+    onPagado: () => guardarPago(),
+    onError: (msg) => toast("danger", msg),
+});
 
 function applyFilters() {
     router.get(route("pagos.search"), filters.value, { preserveState: true, replace: true });
@@ -188,16 +199,6 @@ function pagoCliente(p) {
         || p.nota_venta?.cliente?.nombre
         || p.consulta?.mascota?.cliente?.nombre
         || "—";
-}
-
-function limpiarQrPago() {
-    if (pagoQrInterval) {
-        clearInterval(pagoQrInterval);
-        pagoQrInterval = null;
-    }
-    pagoQrImage.value = "";
-    pagoQrTransaccion.value = "";
-    pagoQrVerificando.value = false;
 }
 
 function cerrarModalPago() {
@@ -330,57 +331,11 @@ async function generarQrPago() {
         toast("danger", "Indique un monto válido para generar el QR.");
         return false;
     }
-    try {
-        const { data } = await axios.post("/api/generar-qr", {
-            ...datosClienteQr(),
-            monto,
-        });
-        if (!data.success || !data.qrImage) {
-            toast("danger", data.message || "No se pudo generar el código QR.");
-            return false;
-        }
-        pagoQrImage.value = `data:image/png;base64,${data.qrImage}`;
-        pagoQrTransaccion.value = data.numeroTransaccion;
-        form.value.id_transaccion_externa = data.numeroTransaccion || "";
-        return true;
-    } catch (e) {
-        toast("danger", e.response?.data?.message || "Error al generar el código QR.");
-        return false;
+    const ok = await generarQrApi({ ...datosClienteQr(), monto });
+    if (ok) {
+        form.value.id_transaccion_externa = pagoQrTransaccion.value || pagoQrNumeroPago.value || "";
     }
-}
-
-async function verificarQrPago() {
-    if (!pagoQrTransaccion.value) return false;
-    try {
-        const { data } = await axios.post("/api/verificar-pago", {
-            numeroTransaccion: pagoQrTransaccion.value,
-        });
-        return data.data?.EstadoTransaccion === 5;
-    } catch {
-        return false;
-    }
-}
-
-function iniciarVerificacionQrPago() {
-    if (pagoQrInterval) clearInterval(pagoQrInterval);
-    pagoQrVerificando.value = true;
-    let intentos = 0;
-    pagoQrInterval = setInterval(async () => {
-        intentos++;
-        if (await verificarQrPago()) {
-            clearInterval(pagoQrInterval);
-            pagoQrInterval = null;
-            pagoQrVerificando.value = false;
-            await guardarPago();
-            return;
-        }
-        if (intentos >= 12) {
-            clearInterval(pagoQrInterval);
-            pagoQrInterval = null;
-            pagoQrVerificando.value = false;
-            toast("danger", "El pago QR no fue confirmado. Escanee el código e intente de nuevo.");
-        }
-    }, 5000);
+    return ok;
 }
 
 async function recargarDatosPagos() {
@@ -610,9 +565,10 @@ async function submitCuota() {
             <FwbPagination v-model="currentPage" :total-pages="pagos.last_page" />
         </div>
 
-        <FwbModal v-if="isModal" @close="cerrarModalPago" size="lg">
+        <FwbModal v-if="isModal" @close="cerrarModalPago" size="5xl">
             <template #header><h3>{{ selected ? "Editar" : "Nuevo" }} pago</h3></template>
             <template #body>
+                <div class="modal-pago-cuerpo">
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
                         <InputLabel value="Origen del pago" />
@@ -743,6 +699,7 @@ async function submitCuota() {
                         </p>
                     </div>
                 </div>
+                </div>
             </template>
             <template #footer>
                 <FwbButton color="alternative" @click="cerrarModalPago">Cancelar</FwbButton>
@@ -827,3 +784,11 @@ async function submitCuota() {
         </FwbModal>
     </AdminLayout>
 </template>
+
+<style scoped>
+.modal-pago-cuerpo {
+    max-height: min(82vh, 920px);
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+</style>
