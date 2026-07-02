@@ -114,6 +114,7 @@ const {
     pagoQrTransaccion,
     pagoQrNumeroPago,
     pagoQrVerificando,
+    pagoQrEsperando,
     pagoQrInfo,
     showConfirmacionPago,
     limpiarQrPago,
@@ -121,6 +122,7 @@ const {
     verificarQrPago,
     iniciarVerificacionQrPago,
     cerrarConfirmacionPago,
+    textoEstadoVerificacionQr,
 } = usePagoQr({
     onError: (msg) => toast("danger", msg),
 });
@@ -403,7 +405,7 @@ async function submit() {
             }
             return;
         }
-        if (!pagoQrVerificando.value) {
+        if (!pagoQrVerificando.value && !pagoQrEsperando.value) {
             loading.value = true;
             const pagado = await verificarQrPago();
             loading.value = false;
@@ -628,7 +630,7 @@ async function submitCuota() {
                         <div v-if="pagoQrImage" class="flex flex-col items-center bg-emerald-50 border border-emerald-100 rounded-lg p-4">
                             <img :src="pagoQrImage" alt="QR de pago" class="max-w-[220px] rounded-lg" />
                             <p class="text-sm text-emerald-700 mt-2">
-                                {{ pagoQrVerificando ? "Verificando pago QR..." : "Escanee el QR para completar el cobro." }}
+                                {{ textoEstadoVerificacionQr() }}
                             </p>
                         </div>
                         <p v-else class="text-sm text-gray-600">
@@ -716,14 +718,16 @@ async function submitCuota() {
                 <FwbButton color="alternative" @click="cerrarModalPago">Cancelar</FwbButton>
                 <FwbButton
                     color="green"
-                    :disabled="loading || pagoQrVerificando"
+                    :disabled="loading || pagoQrVerificando || pagoQrEsperando"
                     @click="submit"
                 >
                     {{
                         !selected && form.metodo_pago === "qr" && !pagoQrImage
                             ? "Generar QR y cobrar"
-                            : !selected && form.metodo_pago === "qr" && pagoQrVerificando
-                              ? "Verificando pago..."
+                            : !selected && form.metodo_pago === "qr" && (pagoQrVerificando || pagoQrEsperando)
+                                ? pagoQrEsperando
+                                    ? "Espere antes de verificar..."
+                                    : "Verificando pago..."
                               : "Guardar"
                     }}
                 </FwbButton>

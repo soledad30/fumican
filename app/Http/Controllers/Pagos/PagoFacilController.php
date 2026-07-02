@@ -57,8 +57,10 @@ class PagoFacilController extends Controller
             return response()->json([
                 'success' => true,
                 'qrImage' => $resultado['qrImage'],
-                'numeroTransaccion' => $resultado['transactionId'],
-                'numeroPago' => $resultado['paymentNumber'],
+                'numeroTransaccion' => $resultado['transactionId'] !== null
+                    ? (string) $resultado['transactionId']
+                    : null,
+                'numeroPago' => (string) $resultado['paymentNumber'],
                 'monto' => $resultado['monto'],
                 'montoAnticipo' => $resultado['monto'],
                 'porcentajeAnticipo' => config('reservas.porcentaje_anticipo', 20),
@@ -79,6 +81,15 @@ class PagoFacilController extends Controller
 
     public function verificarPago(Request $request): JsonResponse
     {
+        $request->merge([
+            'numeroTransaccion' => $request->filled('numeroTransaccion')
+                ? (string) $request->input('numeroTransaccion')
+                : null,
+            'numeroPago' => $request->filled('numeroPago')
+                ? (string) $request->input('numeroPago')
+                : null,
+        ]);
+
         $request->validate([
             'numeroTransaccion' => 'nullable|string|max:100',
             'numeroPago' => 'nullable|string|max:100',

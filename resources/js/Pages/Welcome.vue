@@ -579,8 +579,8 @@ async function generateQrCode() {
     if (!data.success) {
       throw new Error(data.message || 'Error al generar el QR')
     }
-    transactionId.value = data.numeroTransaccion || ''
-    numeroPago.value = data.numeroPago || ''
+    transactionId.value = data.numeroTransaccion != null ? String(data.numeroTransaccion) : ''
+    numeroPago.value = data.numeroPago != null ? String(data.numeroPago) : ''
     montoAnticipoPago.value = Number(data.montoAnticipo) || 0
     if (data.porcentajeAnticipo) porcentajeAnticipo.value = data.porcentajeAnticipo
     return data.qrImage
@@ -600,8 +600,8 @@ async function verifyPurchase() {
         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
       },
       body: JSON.stringify({
-        numeroTransaccion: transactionId.value || undefined,
-        numeroPago: numeroPago.value || undefined,
+        ...(transactionId.value ? { numeroTransaccion: String(transactionId.value) } : {}),
+        ...(numeroPago.value ? { numeroPago: String(numeroPago.value) } : {}),
       }),
     })
 
