@@ -1,20 +1,9 @@
 import { ref, computed, watch } from "vue";
-
-function fechaHoyLocal() {
-    return new Date().toISOString().slice(0, 16);
-}
-
-function fechaSugerida(dias) {
-    const d = new Date();
-    d.setDate(d.getDate() + dias);
-    return d.toISOString().slice(0, 10);
-}
-
-function maxFechaVencimiento() {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    return d.toISOString().slice(0, 10);
-}
+import {
+    ahoraDatetimeLocal,
+    fechaBoliviaDesplazada,
+    maxFechaVencimientoBolivia,
+} from "@/Utils/fechaBolivia";
 
 function distribuirMontos(saldo, n) {
     const total = Math.round(Number(saldo) * 100) || 0;
@@ -44,15 +33,15 @@ export function usePlanCredito(getSaldo) {
         numPagos.value = n;
 
         const previo = pagosPlan.value;
-        const hoy = fechaHoyLocal();
-        const maxFecha = maxFechaVencimiento();
+        const hoy = ahoraDatetimeLocal();
+        const maxFecha = maxFechaVencimientoBolivia();
         const montosSugeridos = distribuirMontos(saldo, n);
 
         pagosPlan.value = Array.from({ length: n }, (_, i) => {
             const existente = previo[i];
             let fecha = existente?.fecha;
             if (!fecha) {
-                fecha = i === 0 ? hoy : fechaSugerida(i * 15);
+                fecha = i === 0 ? hoy : fechaBoliviaDesplazada(i * 15);
             }
             if (i > 0 && fecha > maxFecha) {
                 fecha = maxFecha;
@@ -160,7 +149,7 @@ export function usePlanCredito(getSaldo) {
         diferencia,
         planValido,
         saldosPorFila,
-        maxFechaVencimiento,
+        maxFechaVencimiento: maxFechaVencimientoBolivia,
         payloadCuotasPlan,
     };
 }

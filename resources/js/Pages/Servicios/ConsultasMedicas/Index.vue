@@ -24,6 +24,14 @@ import { usePlanCredito } from "@/Composables/usePlanCredito";
 import { usePagoQr, aplicarInfoPagoQrAForm } from "@/Composables/usePagoQr";
 import PagoQrConfirmacionModal from "@/Components/Modals/PagoQrConfirmacionModal.vue";
 import TableActionButtons from "@/Components/TableActionButtons.vue";
+import {
+    ahoraFechaYmd,
+    ahoraHoraHms,
+    formatearFecha,
+    formatearFechaHora,
+    normalizarFechaYmd,
+    timestampDesdeFechaHoraBolivia,
+} from "@/Utils/fechaBolivia";
 
 const route = inject("route");
 
@@ -331,8 +339,8 @@ function parseInicioCita(consultation) {
     const fecha = normalizarFechaYmd(consultation.fecha);
     if (!fecha) return null;
     const hora = normalizarHoraInput(consultation.hora);
-    const reserva = new Date(`${fecha}T${hora}:00`);
-    return Number.isNaN(reserva.getTime()) ? null : reserva;
+    const timestamp = timestampDesdeFechaHoraBolivia(fecha, `${hora}:00`);
+    return Number.isNaN(timestamp) ? null : new Date(timestamp);
 }
 
 function verificarAlertasCitasProximas() {
@@ -360,6 +368,14 @@ function verificarAlertasCitasProximas() {
     }
 }
 
+function formatoFechaConsulta(consultation) {
+    if (consultation.fecha) {
+        return formatearFecha(consultation.fecha);
+    }
+
+    return formatearFechaHora(consultation.created_at);
+}
+
 function formatoFiltroFecha(valor) {
     if (!valor) return "";
     const partes = String(valor).slice(0, 10).split("-");
@@ -384,10 +400,10 @@ function esReservaVencida(consultation) {
         ? String(consultation.hora).slice(0, 8)
         : "23:59:59";
 
-    const reserva = new Date(`${fecha}T${hora}`);
-    if (Number.isNaN(reserva.getTime())) return false;
+    const timestamp = timestampDesdeFechaHoraBolivia(fecha, hora);
+    if (Number.isNaN(timestamp)) return false;
 
-    return reserva.getTime() < Date.now();
+    return timestamp < Date.now();
 }
 
 function transicionesParaConsulta(consultation) {
@@ -404,20 +420,7 @@ function transicionesParaConsulta(consultation) {
 }
 
 function fechaHoyYmd() {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-}
-
-function normalizarFechaYmd(fecha) {
-    if (!fecha) return null;
-    const soloFecha = String(fecha).slice(0, 10);
-    const partes = soloFecha.split("-");
-    if (partes.length !== 3) return soloFecha;
-    if (partes[0].length === 4) return soloFecha;
-    return `${partes[2]}-${partes[1]}-${partes[0]}`;
+    return ahoraFechaYmd();
 }
 
 function esFechaAtencionHoy(consultation) {
@@ -930,7 +933,6 @@ function displayToast(type, message) {
 function prepareFormData(data) {
     const joinOrDefault = (val, def = "Normal") =>
         Array.isArray(val) ? (val.length ? val.join(", ") : def) : val || def;
-    const now = new Date();
     const estado = data.estado || "completada";
 
     return {
@@ -942,7 +944,7 @@ function prepareFormData(data) {
         veterinarian_id: page.props.auth.user.id,
         estado,
         fecha: data.fecha || fechaHoyYmd(),
-        hora: data.hora || now.toTimeString().slice(0, 8),
+        hora: data.hora || ahoraHoraHms(),
     };
 }
 
@@ -1294,7 +1296,7 @@ async function submitDelete() {
                 >
                     <FwbTableCell class="w-12">{{ consultation.id }}</FwbTableCell>
                     <FwbTableCell class="vet-th-fecha">
-                        {{ consultation.fecha || consultation.created_at }}
+                        {{ formatoFechaConsulta(consultation) }}
                         <span v-if="consultation.hora" class="text-gray-500 text-xs"> {{ consultation.hora }}</span>
                     </FwbTableCell>
                     <FwbTableCell class="max-w-[9rem] truncate" :title="consultation.pet_owner">{{ consultation.pet_owner }}</FwbTableCell>

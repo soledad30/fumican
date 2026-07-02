@@ -6,8 +6,6 @@ use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
-date_default_timezone_set('America/La_Paz');
-
 class PaymentGatewayService
 {
     private Client $client;

@@ -6,6 +6,7 @@ import { computed, inject, ref, onMounted, onUnmounted } from "vue";
 import axios from "axios";
 import { usePermisos } from "@/Composables/usePermisos";
 import InputError from "@/Components/InputError.vue";
+import { ahoraFechaYmd, esFechaHoyBolivia } from "@/Utils/fechaBolivia";
 import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
 import FormSectionTitle from "@/Components/Forms/FormSectionTitle.vue";
@@ -224,8 +225,7 @@ function confirmarEmergencia() {
 }
 
 function esFechaHoy(fecha) {
-    if (!fecha) return true;
-    return String(fecha).slice(0, 10) === new Date().toISOString().slice(0, 10);
+    return esFechaHoyBolivia(fecha);
 }
 
 async function loadRegistroSpecies() {
@@ -575,7 +575,7 @@ async function submitReprogramar() {
                 <div class="space-y-4">
                     <div>
                         <InputLabel value="Nueva fecha *" />
-                        <input v-model="reprogramarForm.fecha" type="date" class="mt-1 w-full border rounded px-3 py-2" :min="new Date().toISOString().slice(0, 10)" />
+                        <input v-model="reprogramarForm.fecha" type="date" class="mt-1 w-full border rounded px-3 py-2" :min="ahoraFechaYmd()" />
                         <InputError :message="reprogramarErrors.fecha?.[0]" />
                     </div>
                     <div>

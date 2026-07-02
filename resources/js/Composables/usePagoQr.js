@@ -1,5 +1,6 @@
 import axios from "axios";
 import { ref } from "vue";
+import { ahoraDatetimeLocal } from "@/Utils/fechaBolivia";
 
 export function infoPagoQrConfirmada(info) {
     if (!info || typeof info !== "object") return false;
@@ -81,7 +82,7 @@ export function aplicarInfoPagoQrAForm(form, info, pagosPlan = null) {
         const hora = (info.paymentTime || "00:00:00").slice(0, 5);
         form.fecha_pago = `${info.paymentDate}T${hora}`;
     } else if (!form.fecha_pago) {
-        form.fecha_pago = new Date().toISOString().slice(0, 16);
+        form.fecha_pago = ahoraDatetimeLocal();
     }
 
     if (Array.isArray(pagosPlan) && pagosPlan.length > 0) {

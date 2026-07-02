@@ -2,6 +2,7 @@
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Link } from "@inertiajs/vue3";
 import { FwbBadge, FwbButton } from "flowbite-vue";
+import { formatearFechaHora } from "@/Utils/fechaBolivia";
 
 const props = defineProps({
     mascota: Object,
@@ -33,8 +34,7 @@ const estadoBadge = {
 };
 
 function formatearFecha(fecha) {
-    if (!fecha) return "—";
-    return new Date(fecha).toLocaleString("es-BO");
+    return formatearFechaHora(fecha);
 }
 </script>
 

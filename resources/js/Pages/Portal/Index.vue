@@ -7,6 +7,7 @@ import axios from "axios";
 import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputError from "@/Components/InputError.vue";
+import { ahoraFechaYmd, formatearFecha } from "@/Utils/fechaBolivia";
 
 const route = inject("route");
 
@@ -34,7 +35,7 @@ const form = ref({
     comentario: "",
 });
 
-const fechaMinima = computed(() => new Date().toISOString().split("T")[0]);
+const fechaMinima = computed(() => ahoraFechaYmd());
 
 const servicioSeleccionado = computed(() =>
     props.servicios.find((s) => String(s.id) === String(form.value.servicio_id))
@@ -69,7 +70,7 @@ function toast(type, msg) {
 }
 
 function formatoCita(cita) {
-    const fecha = cita.fecha ? new Date(cita.fecha + "T12:00:00").toLocaleDateString() : "";
+    const fecha = cita.fecha ? formatearFecha(cita.fecha) : "";
     const hora = cita.hora ? ` ${cita.hora}` : "";
     const servicio = cita.servicio || cita.motivo || "Consulta";
     return `${servicio} — ${fecha}${hora}`;

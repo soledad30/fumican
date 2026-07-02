@@ -46,6 +46,9 @@ class HandleInertiaRequests extends Middleware
                 : null,
             'visitCount' => $visitCount,
             'visitasTotal' => $this->visitasTotalSeguras(),
+            'app' => [
+                'timezone' => config('app.timezone', 'America/La_Paz'),
+            ],
         ]);
     }
 

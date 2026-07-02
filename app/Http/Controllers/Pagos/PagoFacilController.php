@@ -10,8 +10,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-date_default_timezone_set('America/La_Paz');
-
 class PagoFacilController extends Controller
 {
     public function __construct(

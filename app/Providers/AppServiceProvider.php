@@ -23,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        date_default_timezone_set(config('app.timezone', 'America/La_Paz'));
+
         App::setLocale(config('app.locale', 'es'));
 
         if ($appUrl = config('app.url')) {

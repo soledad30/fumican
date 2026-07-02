@@ -15,6 +15,7 @@ import { usePermisos } from "@/Composables/usePermisos";
 import { usePlanCredito } from "@/Composables/usePlanCredito";
 import { usePagoQr, aplicarInfoPagoQrAForm } from "@/Composables/usePagoQr";
 import PagoQrConfirmacionModal from "@/Components/Modals/PagoQrConfirmacionModal.vue";
+import { ahoraDatetimeLocal, formatearFechaHora, paraDatetimeLocal } from "@/Utils/fechaBolivia";
 
 const route = inject("route");
 const { puede } = usePermisos();
@@ -138,23 +139,7 @@ function tipoBadge(tipo) {
 }
 
 function formatFechaPago(fecha) {
-    if (!fecha) return "—";
-    const iso = new Date(fecha);
-    if (!Number.isNaN(iso.getTime())) {
-        return iso.toLocaleDateString("es-BO", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    }
-    const partes = String(fecha).match(/^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
-    if (partes) {
-        const hora = partes[4] ? ` ${partes[4]}:${partes[5]}` : "";
-        return `${partes[1]}/${partes[2]}/${partes[3]}${hora}`;
-    }
-    return String(fecha);
+    return formatearFechaHora(fecha);
 }
 
 function saldoOrigen(item) {
@@ -244,7 +229,7 @@ function openCreate() {
     origenPago.value = "nota";
     form.value = {
         nota_venta_id: "", consulta_id: "", monto: 0, tipo_pago: "contado", metodo_pago: "efectivo",
-        id_transaccion_externa: "", fecha_pago: new Date().toISOString().slice(0, 16), num_cuotas: 3,
+        id_transaccion_externa: "", fecha_pago: ahoraDatetimeLocal(), num_cuotas: 3,
     };
     pagosPlan.value = [];
     isModal.value = true;
@@ -261,7 +246,7 @@ function openCreatePendiente(cuenta) {
         tipo_pago: "contado",
         metodo_pago: "efectivo",
         id_transaccion_externa: "",
-        fecha_pago: new Date().toISOString().slice(0, 16),
+        fecha_pago: ahoraDatetimeLocal(),
         num_cuotas: 3,
     };
     pagosPlan.value = [];
@@ -278,7 +263,7 @@ function openEdit(p) {
         tipo_pago: p.tipo_pago || "contado",
         metodo_pago: p.metodo_pago || "efectivo",
         id_transaccion_externa: p.id_transaccion_externa || "",
-        fecha_pago: p.fecha_pago ? p.fecha_pago.slice(0, 16) : "",
+        fecha_pago: p.fecha_pago ? paraDatetimeLocal(p.fecha_pago) : "",
     };
     isModal.value = true;
 }
@@ -316,7 +301,7 @@ watch(() => form.value.metodo_pago, (metodo) => {
 
 watch(() => form.value.tipo_pago, (tipo) => {
     if (!selected.value && tipo === "contado" && !form.value.fecha_pago) {
-        form.value.fecha_pago = new Date().toISOString().slice(0, 16);
+        form.value.fecha_pago = ahoraDatetimeLocal();
     }
     if (!selected.value && tipo === "credito" && origenSeleccionado.value) {
         initPlan();
@@ -443,7 +428,7 @@ function openPagarCuota(cuota) {
         monto: Number(cuota.monto) || 0,
         metodo_pago: "efectivo",
         id_transaccion_externa: "",
-        fecha_pago: new Date().toISOString().slice(0, 16),
+        fecha_pago: ahoraDatetimeLocal(),
     };
     isCuotaModal.value = true;
 }

@@ -385,6 +385,7 @@ import { ref, computed } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import { FwbToast } from 'flowbite-vue'
 import { esPagoQrConfirmado } from '@/Composables/usePagoQr'
+import { ahoraFechaYmd } from '@/Utils/fechaBolivia'
 
 const props = defineProps({
   servicios: { type: Array, default: () => [] },
@@ -431,7 +432,7 @@ const ventajas = [
   { icon: 'fa-solid fa-shield-heart', title: 'Trato humano', text: 'Ambiente tranquilo para reducir el estrés de tu mascota.' },
 ]
 
-const fechaMinima = computed(() => new Date().toISOString().split('T')[0])
+const fechaMinima = computed(() => ahoraFechaYmd())
 
 const filteredServicios = computed(() => {
   const term = serviceSearch.value.trim().toLowerCase()

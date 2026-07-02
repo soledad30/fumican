@@ -9,6 +9,7 @@ import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputError from "@/Components/InputError.vue";
 import FormSectionTitle from "@/Components/Forms/FormSectionTitle.vue";
+import { fechaParaInput } from "@/Utils/fechaBolivia";
 
 function recepcionUrl(name, params = {}) {
     return resolveAppUrl(route(name, params));
@@ -329,21 +330,6 @@ async function cargarMascotasCliente() {
         mascotasCliente.value = [];
         toast("danger", "No se pudieron cargar las mascotas del cliente.");
     }
-}
-
-function fechaParaInput(valor) {
-    if (!valor) {
-        return "";
-    }
-    const str = String(valor);
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-        return str.slice(0, 10);
-    }
-    const d = new Date(str);
-    if (Number.isNaN(d.getTime())) {
-        return "";
-    }
-    return d.toISOString().slice(0, 10);
 }
 
 async function cargarMascotaSeleccionada() {
